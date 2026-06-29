@@ -562,6 +562,47 @@ body{font-family:var(--font);color:var(--text);background:
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script type="module">
+  // ── Firebase cross-device sync (same jacks-os project as the classic app) ──
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyAWPLUMyt29jIEOmfKWcT3bfKkCbFohsGA",
+    authDomain: "jacks-os.firebaseapp.com",
+    projectId: "jacks-os",
+    storageBucket: "jacks-os.firebasestorage.app",
+    messagingSenderId: "570236729187",
+    appId: "1:570236729187:web:ca992404746ceb188e0556"
+  };
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const DOC_REF = doc(db, 'users', 'jack_redesign');   // separate doc so it won't clash with the classic app's data
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin'];
+  const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
+  function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
+  const _pending={}; let _t=null;
+  window.fbSet=function(key,value){
+    if(!shouldSync(key))return;
+    _pending[key]=(value===null?null:String(value)); _pending['_ts']=Date.now();
+    if(_t)clearTimeout(_t);
+    _t=setTimeout(async()=>{ const b={..._pending}; Object.keys(_pending).forEach(k=>delete _pending[k]);
+      try{ await setDoc(DOC_REF,b,{merge:true}); }catch(e){ console.log('fb set',e.code||e); } },800);
+  };
+  window._origSetItem=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){ window._origSetItem(k,v); if(shouldSync(k))try{window.fbSet(k,v);}catch(e){} };
+  window._origRemoveItem=localStorage.removeItem.bind(localStorage);
+  localStorage.removeItem=function(k){ window._origRemoveItem(k); if(shouldSync(k))try{window.fbSet(k,null);}catch(e){} };
+  function applyDoc(data){ let n=0; for(const key of Object.keys(data)){ if(!shouldSync(key)||data[key]==null)continue; window._origSetItem(key,String(data[key])); n++; }
+    if(n&&typeof window.cloudSyncApply==='function')window.cloudSyncApply(); return n; }
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    let connected=true;
+    try{ const snap=await getDoc(DOC_REF); if(snap.exists())applyDoc(snap.data()); console.log('Firebase: connected ✓ (cross-device sync on)'); }
+    catch(e){ connected=false; console.log('Firebase: NOT connected — set Firestore rules to enable sync. ('+(e.code||e)+')'); }
+    if(connected) onSnapshot(DOC_REF,(snap)=>{ if(!snap.exists())return;
+      const data=snap.data(), remoteTs=data._ts||0, localTs=parseInt(localStorage.getItem('_jd_ts')||'0');
+      if(remoteTs>localTs+1500){ const c=applyDoc(data); if(c){ window._origSetItem('_jd_ts',String(remoteTs)); console.log('Firebase: synced from another device'); } }
+    });
+  });
+</script>
 </head>
 <body>
 
@@ -1522,6 +1563,8 @@ function editGoal(i,v){if(GOALS[i]){GOALS[i].text=(v||'').trim()||GOALS[i].text;
 function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
+// Called by the Firebase module when data arrives from another device
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
