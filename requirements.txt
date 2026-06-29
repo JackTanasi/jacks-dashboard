@@ -1,0 +1,1 @@
+# Pure standard library — no deps. Exists so Render detects Python.
