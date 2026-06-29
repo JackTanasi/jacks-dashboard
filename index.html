@@ -606,6 +606,17 @@ body{font-family:var(--font);color:var(--text);background:
 .shot-sg .sg-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35;}
 .ts-shot{margin-top:8px;}
 .ts-shot img{width:100%;border-radius:12px;border:1px solid var(--border);display:block;}
+/* Toast */
+.jd-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:var(--green);color:#fff;padding:12px 18px;border-radius:14px;font-size:13.5px;font-weight:600;box-shadow:0 14px 44px -12px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:all .25s;z-index:400;max-width:86vw;text-align:center;}
+.jd-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* Add-task modal */
+.add-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.96);width:min(480px,92vw);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:20px 22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:all .25s;z-index:320;}
+.dark .add-modal{background:#16211d;}
+.add-modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);}
+.add-modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.add-modal-title{font-size:19px;font-weight:800;letter-spacing:-.02em;}
+.add-modal .add-input{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;background:var(--card);color:var(--text);}
+.add-modal .brand-pick{margin-top:6px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -1332,6 +1343,17 @@ body{font-family:var(--font);color:var(--text);background:
 </div>
 
 <!-- Task detail slide-over -->
+<div class="sheet-backdrop" id="addBackdrop" onclick="closeAddTask()" style="z-index:319;"></div>
+<div class="add-modal" id="addModal" role="dialog" aria-label="Add task">
+  <div class="add-modal-head"><div class="add-modal-title">＋ New Task</div><button class="ts-close" onclick="closeAddTask()" aria-label="Close">×</button></div>
+  <input class="add-input" id="amText" placeholder="What needs doing?" onkeydown="if(event.key==='Enter')addModalSubmit()"/>
+  <div class="ts-section-label" style="margin:14px 0 0;">Business</div>
+  <div class="brand-pick" id="amBrands"></div>
+  <div class="ts-section-label" style="margin:14px 0 0;">Urgency</div>
+  <div class="urg-pills" id="amUrg"><button class="urg sel" data-u="urgent">🔴 Urgent</button><button class="urg" data-u="deck">🟠 On Deck</button><button class="urg" data-u="bank">🟢 In the Bank</button></div>
+  <div class="add-date-row"><span class="add-date-lbl">📅 Due date</span><input type="date" id="amDate" class="add-date"/></div>
+  <button class="btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="addModalSubmit()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add Task</button>
+</div>
 <div class="sheet-backdrop" id="taskBackdrop" onclick="closeTask()"></div>
 <aside class="task-sheet" id="taskSheet" aria-label="Task detail">
   <div class="ts-head">
@@ -1750,6 +1772,57 @@ function addSuggestion(shotId){
   drop.addEventListener('drop',function(e){e.preventDefault();drop.classList.remove('over');if(e.dataTransfer&&e.dataTransfer.files)addShotFiles(e.dataTransfer.files);});
   document.addEventListener('paste',function(e){var pg=document.getElementById('page-tasks');if(!pg||pg.offsetParent===null)return;var items=(e.clipboardData||{}).items||[],fs=[];for(var i=0;i<items.length;i++){if(/^image\//.test(items[i].type)){var f=items[i].getAsFile();if(f)fs.push(f);}}if(fs.length)addShotFiles(fs);});
 })();
+// ── Toast ──
+function toast(msg,ms){var t=document.getElementById('jdToast');if(!t){t=document.createElement('div');t.id='jdToast';t.className='jd-toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(t._x);t._x=setTimeout(function(){t.classList.remove('show');},ms||2600);}
+// ── Add-task modal (works from any page) ──
+function openAddTask(brand){
+  var b=document.getElementById('amBrands');
+  b.innerHTML=SG_BRANDS.map(function(x){var on=(x[0]===(brand||'per'))?' sel':'';return x[1]==='GTE'?'<button class="brand-logo gte'+on+'" data-b="gte"><span>GTE</span></button>':'<button class="brand-logo'+on+'" data-b="'+x[0]+'"><img src="'+x[1]+'"/></button>';}).join('');
+  b.querySelectorAll('.brand-logo').forEach(function(btn){btn.onclick=function(){b.querySelectorAll('.brand-logo').forEach(function(z){z.classList.remove('sel');});btn.classList.add('sel');};});
+  var u=document.getElementById('amUrg');u.querySelectorAll('.urg').forEach(function(btn){btn.onclick=function(){u.querySelectorAll('.urg').forEach(function(z){z.classList.remove('sel');});btn.classList.add('sel');};});
+  document.getElementById('amText').value='';document.getElementById('amDate').value='';
+  document.getElementById('addModal').classList.add('show');document.getElementById('addBackdrop').classList.add('show');
+  setTimeout(function(){var i=document.getElementById('amText');if(i)i.focus();},260);
+}
+function closeAddTask(){document.getElementById('addModal').classList.remove('show');document.getElementById('addBackdrop').classList.remove('show');}
+function addModalSubmit(){
+  var el=document.getElementById('amText'),text=(el.value||'').trim();if(!text){el.focus();return;}
+  var bs=document.querySelector('#amBrands .brand-logo.sel');var brand=bs?bs.getAttribute('data-b'):'per';
+  var us=document.querySelector('#amUrg .urg.sel');var urg=us?us.getAttribute('data-u'):'urgent';
+  var due=document.getElementById('amDate').value||'';
+  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:'',due:due,notes:'',img:false});
+  saveTasks();renderTasks();closeAddTask();toast('✓ Task added');
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAddTask();});
+// ── Catch-all: no button is a silent dead-click ──
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button, a.btn, .btn-primary');if(!b)return;
+  if(b.getAttribute('onclick'))return;          // already wired inline
+  if(b.closest('#addModal'))return;             // modal's own controls
+  var t=(b.textContent||'').replace(/\s+/g,' ').trim();
+  // create-a-task buttons
+  if(b.closest('#page-tasks')&&/Add Task/i.test(t)){openAddTask();return;}
+  if(/Log a trade/i.test(t)){openAddTask('tr');return;}
+  if(/New job/i.test(t)){openAddTask('gte');return;}
+  // financial inline editing (genuinely local)
+  if(b.classList.contains('row-x')){var r=b.closest('.exp-row')||b.parentElement;if(r&&r.parentElement){r.parentElement.removeChild(r);if(window.calcFin)calcFin();toast('Line removed');}return;}
+  if(b.classList.contains('add-line')){var blk=b.parentElement,row=document.createElement('div');row.className='exp-row';row.innerHTML='<span class="editable" contenteditable="true" spellcheck="false">New item</span><div class="bal-input">$<input class="exp-input" type="number" value="0" oninput="if(window.calcFin)calcFin()"/></div><button class="row-x">×</button>';blk.insertBefore(row,b);var sp=row.querySelector('span');if(sp){var rg=document.createRange();rg.selectNodeContents(sp);var se=window.getSelection();se.removeAllRanges();se.addRange(rg);}return;}
+  if(b.classList.contains('collapse-btn')){var card=b.closest('.card');if(card){card.classList.toggle('collapsed');b.textContent=card.classList.contains('collapsed')?'▸':'▾';}return;}
+  // prayer toggle (local)
+  if(/Mark as prayed/i.test(t)){var k='jd_prayed_'+new Date().toISOString().slice(0,10);if(localStorage.getItem(k)){localStorage.removeItem(k);b.textContent='🙏 Mark as prayed';toast('Unmarked');}else{localStorage.setItem(k,'1');b.textContent='✓ Prayed today';toast('🙏 Marked as prayed');}return;}
+  // settings: save Anthropic key (local)
+  if(/Save Key/i.test(t)){var inp=b.parentElement.querySelector('input');var v=inp?(inp.value||'').trim():'';if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);if(inp)inp.value='';toast('✓ Key saved on this device');return;}
+  // integration-dependent → honest feedback, never silent
+  if(/Summarise all/i.test(t)){toast('Connect Gmail to summarise your inboxes — coming next');return;}
+  if(b.classList.contains('mail-add')){toast('Inbox linking comes when we connect Gmail');return;}
+  if(/Find in email/i.test(t)||b.classList.contains('doc-find')){toast('Finds this doc in your email once Gmail is connected');return;}
+  if(b.classList.contains('doc-saved')&&/View/i.test(t)){toast('Opens the file once document storage is connected');return;}
+  if(/Upload/i.test(t)&&b.closest('#page-documents')){toast('File upload comes with document storage');return;}
+  if(/Link my Airbnb/i.test(t)){toast('Airbnb linking comes when we connect your Airbnb');return;}
+  if(/Connect Google Calendar/i.test(t)){toast('Google Calendar 2-way sync is the next integration');return;}
+  if(/Edit URLs/i.test(t)){toast('Learning-vault links will be editable soon');return;}
+  if((t==='Send'||t==='Ask')&&(b.closest('#page-trading')||b.closest('#page-financial'))){toast('AI chat activates when Claude is connected (Settings → API key)');return;}
+});
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
