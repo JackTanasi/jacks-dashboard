@@ -559,7 +559,24 @@ body{font-family:var(--font);color:var(--text);background:
   .topbar h1{font-size:23px;}.search{display:none;}
   .vault-grid{grid-template-columns:1fr;}
   .hero-foot{gap:14px;flex-wrap:wrap;}
+  .task-row{gap:9px;}
+  .task-open{gap:10px;min-width:0;}
+  .task-main{min-width:0;}
+  .task-row .t{font-size:14.5px;line-height:1.25;overflow-wrap:anywhere;}
+  .task-row .m{overflow-wrap:anywhere;}
+  .task-row .status-pill{flex-shrink:0;font-size:10px;padding:3px 9px;align-self:flex-start;margin-top:2px;}
+  .task-logo{width:34px;height:34px;flex-shrink:0;}
 }
+.add-date-row{display:flex;align-items:center;gap:9px;margin:11px 0 3px;}
+.add-date-lbl{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.01em;}
+.add-date{border:1px solid var(--border);border-radius:10px;padding:8px 11px;font:inherit;font-size:13px;color:var(--text);background:var(--card);cursor:pointer;}
+.add-date-clear{border:none;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px;}
+.task-open{display:flex;align-items:center;gap:13px;flex:1;min-width:0;cursor:pointer;}
+.task-row .m .due{color:var(--green3);font-weight:700;}
+.task-row .m .due.over{color:#c0492f;}
+.ts-due-input{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px;color:var(--text);background:var(--card);}
+#tsNext:empty:before{content:'Add a next step…';color:var(--muted);}
+#tsNotes:empty:before{content:'Add notes…';color:var(--muted);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -776,6 +793,7 @@ body{font-family:var(--font);color:var(--text);background:
         <button class="brand-logo gte" title="GTE Electrical (Dad)"><span>GTE</span></button>
         <button class="brand-logo" title="Personal"><img src="logo-ti.svg" alt="Personal"/></button>
       </div>
+      <div class="add-date-row"><span class="add-date-lbl">📅 Due date</span><input type="date" id="taskDate" class="add-date"/><button type="button" class="add-date-clear" onclick="document.getElementById('taskDate').value=''" title="Clear date">clear</button></div>
       <div class="addtask-foot">
         <div class="urg-pills"><button class="urg sel">🔴 Urgent</button><button class="urg">🟠 On Deck</button><button class="urg">🟢 In the Bank</button></div>
         <button class="btn-primary" onclick="addTaskFromForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add Task</button>
@@ -1273,7 +1291,7 @@ body{font-family:var(--font);color:var(--text);background:
 <div class="sheet-backdrop" id="taskBackdrop" onclick="closeTask()"></div>
 <aside class="task-sheet" id="taskSheet" aria-label="Task detail">
   <div class="ts-head">
-    <div class="ts-head-main"><div class="ts-logo" id="tsLogo"></div><div><div class="ts-title" id="tsTitle">Task</div><span class="status-pill sp-urgent" id="tsStatus">Pending</span></div></div>
+    <div class="ts-head-main"><div class="ts-logo" id="tsLogo"></div><div><div class="ts-title editable" id="tsTitle" contenteditable="true" spellcheck="false" onblur="setTaskTitle(this.textContent)">Task</div><span class="status-pill sp-urgent" id="tsStatus">Pending</span></div></div>
     <button class="ts-close" onclick="closeTask()" aria-label="Close">×</button>
   </div>
   <div class="ts-body">
@@ -1286,23 +1304,18 @@ body{font-family:var(--font);color:var(--text);background:
     </div>
     <div class="ts-section-label">Details</div>
     <div class="ts-field"><span class="ts-k">Business</span><span class="ts-v" id="tsBrand">—</span></div>
-    <div class="ts-field"><span class="ts-k">Urgency</span><span class="ts-v">🔴 Urgent</span></div>
-    <div class="ts-field"><span class="ts-k">Next step</span><span class="ts-v">Send to Regan for approval</span></div>
-    <div class="ts-field"><span class="ts-k">Due</span><span class="ts-v">Today · 5:00pm</span></div>
-    <div class="ts-field"><span class="ts-k">Link</span><span class="ts-v"><a href="#" onclick="return false" style="color:var(--green3);font-weight:700;">Google Doc ↗</a></span></div>
-    <div class="ts-field"><span class="ts-k">Recurring</span><span class="ts-v">—</span></div>
+    <div class="ts-field"><span class="ts-k">Urgency</span><span class="ts-v" id="tsUrg">—</span></div>
+    <div class="ts-field"><span class="ts-k">Due date</span><span class="ts-v"><input type="date" class="ts-due-input" id="tsDue" onchange="setTaskDue(this.value)"/></span></div>
+    <div class="ts-field"><span class="ts-k">Next step</span><span class="ts-v editable" contenteditable="true" spellcheck="false" id="tsNext" onblur="setTaskNext(this.textContent)">—</span></div>
     <div class="ts-section-label">Notes</div>
-    <div class="ts-notes">Final sign-off needed before the print deadline. Sarah has the proofs ready — just needs a yes.</div>
-    <div class="ts-section-label">Attachments</div>
-    <div class="ts-attach">📎 campaign-brief.pdf</div>
+    <div class="ts-notes editable" contenteditable="true" spellcheck="false" id="tsNotes" onblur="setTaskNotes(this.textContent)"></div>
     <div class="ts-ai-result" id="tsAiResult"></div>
     <div class="ts-actions" style="flex-direction:column;align-items:stretch;">
       <button class="btn-primary" style="justify-content:center;" onclick="completeWithAI()">✦ Complete with AI</button>
       <button class="ts-btn ts-tm" onclick="openTaskManager()">🤖 Task Manager</button>
       <div style="display:flex;gap:8px;">
-        <button class="ts-btn" style="flex:1;" onclick="closeTask()">✓ Done</button>
-        <button class="ts-btn" style="flex:1;">Edit</button>
-        <button class="ts-btn danger">🗑</button>
+        <button class="ts-btn" style="flex:1;" onclick="markCurrentDone()">✓ Mark done</button>
+        <button class="ts-btn danger" style="flex:1;" onclick="deleteCurrentTask()">🗑 Delete</button>
       </div>
     </div>
   </div>
@@ -1525,12 +1538,14 @@ var URG={urgent:['sp-urgent','Urgent'],deck:['sp-deck','On Deck'],bank:['sp-bank
 var COLS=[['pending','Pending'],['underway','Underway'],['ooc','Out of My Control'],['done','Completed']];
 function findTask(id){for(var i=0;i<TASKS.length;i++)if(TASKS[i].id===id)return TASKS[i];return null;}
 function setTxt(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+function fmtDue(iso){if(!iso)return null;var d=new Date(iso+'T00:00:00');if(isNaN(d))return null;var today=new Date();today.setHours(0,0,0,0);var diff=Math.round((d-today)/86400000);var lbl=d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});if(diff===0)lbl='Today';else if(diff===1)lbl='Tomorrow';else if(diff===-1)lbl='Yesterday';return {txt:lbl,over:diff<0};}
+function rowMeta(t){var d=fmtDue(t.due);if(d)return '<span class="due'+(d.over?' over':'')+'">📅 '+d.txt+'</span>'+(t.next?' · Next: '+esc(t.next):'');return t.next?'Next: '+esc(t.next):'&nbsp;';}
 function renderTasks(){
   var ht=document.getElementById('homeTasks');
   if(ht){
     var active=TASKS.filter(function(t){return t.status!=='done';});
     ht.innerHTML=active.length?active.map(function(t){var u=URG[t.urg]||URG.urgent;
-      return '<div class="task-row" data-id="'+t.id+'"><div class="task-check" onclick="toggleTaskDone(\''+t.id+'\')"></div><div class="task-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="task-main"><div class="t editable" contenteditable="true" spellcheck="false" onblur="editTask(\''+t.id+'\',this.textContent)">'+esc(t.text)+'</div><div class="m">'+(t.next?'Next: '+esc(t.next):'&nbsp;')+'</div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span><button class="li-x" onclick="removeTask(\''+t.id+'\')">×</button></div>';
+      return '<div class="task-row" data-id="'+t.id+'"><div class="task-check'+(t.status==='done'?' done':'')+'" onclick="event.stopPropagation();toggleTaskDone(\''+t.id+'\')" title="Mark done"></div><div class="task-open" onclick="openTaskDetail(\''+t.id+'\')"><div class="task-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="task-main"><div class="t">'+esc(t.text)+'</div><div class="m">'+rowMeta(t)+'</div></div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span><button class="li-x" onclick="event.stopPropagation();removeTask(\''+t.id+'\')" title="Delete">×</button></div>';
     }).join(''):'<div class="task-empty">No tasks yet — add one with the form on the left.</div>';
     var sub=ht.closest('.card').querySelector('.card-sub');if(sub)sub.textContent=active.length+' active';
   }
@@ -1554,8 +1569,9 @@ function addTaskFromForm(){
   var brand=sel?(TITLE2BRAND[sel.getAttribute('title')]||'per'):'per';
   var su=card.querySelector('.urg.sel'),urg='urgent';
   if(su){var x=su.textContent;urg=x.indexOf('Deck')>-1?'deck':x.indexOf('Bank')>-1?'bank':'urgent';}
-  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:''});
-  saveTasks();renderTasks();inp.value='';
+  var dueEl=document.getElementById('taskDate'),due=dueEl?dueEl.value:'';
+  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:'',due:due,notes:''});
+  saveTasks();renderTasks();inp.value='';if(dueEl)dueEl.value='';
 }
 function renderGoals(){
   var done=GOALS.filter(function(g){return g.done;}).length,total=GOALS.length;
@@ -1598,6 +1614,34 @@ function closeTask(){
   document.getElementById('taskSheet').classList.remove('show');
   document.getElementById('taskBackdrop').classList.remove('show');
 }
+var CURRENT_TASK_ID=null;
+var BRAND_NAMES={sp:'Silver Platter',be:'Bronze Era',ns:'Nest',rhi:'Regan Hillyer',fw:'Frenchie Wear',tr:'Trading',ab:'Airbnb',gte:'GTE Electrical',per:'Personal'};
+var STATUS_LABEL={pending:'Pending',underway:'Underway',ooc:'Out of My Control',done:'Completed'};
+var LABEL_STATUS={'Pending':'pending','Underway':'underway','Out of My Control':'ooc','Completed':'done'};
+function openTaskDetail(id){
+  var t=findTask(id);if(!t)return;
+  CURRENT_TASK_ID=id;
+  document.getElementById('tsTitle').textContent=t.text;
+  var lg=document.getElementById('tsLogo');lg.innerHTML=logoH(t.brand);lg.className='ts-logo'+(t.brand==='gte'?' gte':'');
+  document.getElementById('tsBrand').textContent=BRAND_NAMES[t.brand]||'—';
+  var u=URG[t.urg]||URG.urgent;
+  document.getElementById('tsUrg').textContent=(t.urg==='deck'?'🟠 ':t.urg==='bank'?'🟢 ':'🔴 ')+u[1];
+  document.getElementById('tsDue').value=t.due||'';
+  document.getElementById('tsNext').textContent=t.next||'';
+  document.getElementById('tsNotes').textContent=t.notes||'';
+  var slabel=STATUS_LABEL[t.status]||'Pending';
+  var sp=document.getElementById('tsStatus');sp.textContent=slabel;sp.className='status-pill '+(t.status==='done'?'sp-bank':t.status==='underway'?'sp-deck':'sp-urgent');
+  document.querySelectorAll('.ts-sp').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-s')===slabel);});
+  var box=document.getElementById('tsAiResult');if(box){box.classList.remove('show');box.innerHTML='';}
+  document.getElementById('taskSheet').classList.add('show');
+  document.getElementById('taskBackdrop').classList.add('show');
+}
+function setTaskTitle(v){var t=findTask(CURRENT_TASK_ID);if(t){t.text=(v||'').trim()||t.text;saveTasks();renderTasks();}}
+function setTaskDue(v){var t=findTask(CURRENT_TASK_ID);if(t){t.due=v||'';saveTasks();renderTasks();}}
+function setTaskNext(v){var t=findTask(CURRENT_TASK_ID);if(t){t.next=(v||'').trim();saveTasks();renderTasks();}}
+function setTaskNotes(v){var t=findTask(CURRENT_TASK_ID);if(t){t.notes=(v||'').trim();saveTasks();}}
+function markCurrentDone(){var t=findTask(CURRENT_TASK_ID);if(t){t.status='done';saveTasks();renderTasks();}closeTask();}
+function deleteCurrentTask(){if(CURRENT_TASK_ID)removeTask(CURRENT_TASK_ID);closeTask();}
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
@@ -1615,6 +1659,7 @@ function completeWithAI(){
     var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     box.innerHTML='<div class="ts-ai-done">✓ <b>Done by AI.</b> '+aiResultFor(title)+'<div class="ts-ai-sub">Saved under this task · '+t+' · need more? open the Task Manager.</div></div>';
     var sp=document.getElementById('tsStatus');if(sp){sp.textContent='Completed';sp.className='status-pill sp-bank';}
+    var ct=findTask(CURRENT_TASK_ID);if(ct){ct.status='done';saveTasks();renderTasks();}
   },1400);
 }
 function openTaskManager(){
@@ -1646,11 +1691,7 @@ document.addEventListener('click',function(e){
   var kc=e.target.closest('.kcard');
   if(kc){
     if(e.target.closest('.kcard-logo')){setBrandFilter(kc.getAttribute('data-brand')||'all');return;}
-    var t=(kc.querySelector('.kt')||{}).textContent||'Task';
-    var lg=kc.querySelector('.kcard-logo');
-    var col=kc.closest('.kcol');
-    var status=col?col.querySelector('.kcol-head').firstChild.textContent.trim():'Pending';
-    openTask(t,lg?lg.innerHTML:'',status);
+    openTaskDetail(kc.getAttribute('data-id'));
     return;
   }
   var msp=e.target.closest('.ts-sp');
@@ -1659,7 +1700,8 @@ document.addEventListener('click',function(e){
     msp.classList.add('sel');
     var s=msp.getAttribute('data-s');
     var pill=document.getElementById('tsStatus');
-    pill.textContent=s;pill.className='status-pill '+(s.indexOf('Completed')>-1?'sp-bank':'sp-deck');
+    pill.textContent=s;pill.className='status-pill '+(s.indexOf('Completed')>-1?'sp-bank':s.indexOf('Underway')>-1?'sp-deck':'sp-urgent');
+    var ct=findTask(CURRENT_TASK_ID);if(ct){ct.status=LABEL_STATUS[s]||'pending';saveTasks();renderTasks();}
   }
 });
 
