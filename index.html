@@ -577,6 +577,35 @@ body{font-family:var(--font);color:var(--text);background:
 .ts-due-input{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px;color:var(--text);background:var(--card);}
 #tsNext:empty:before{content:'Add a next step…';color:var(--muted);}
 #tsNotes:empty:before{content:'Add notes…';color:var(--muted);}
+/* Screenshot -> Task */
+.shot-drop{border:2px dashed var(--border);border-radius:16px;padding:22px 16px;text-align:center;cursor:pointer;transition:all .18s;background:rgba(255,255,255,0.35);}
+.shot-drop.over{border-color:var(--green3);background:rgba(3,54,47,0.06);}
+.shot-drop-icon{font-size:26px;}
+.shot-drop-t{font-weight:800;margin-top:5px;letter-spacing:-.01em;}
+.shot-drop-s{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.shot-pick{color:var(--green3);font-weight:700;text-decoration:underline;cursor:pointer;}
+.shot-thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.shot-thumb{position:relative;width:74px;height:74px;border-radius:12px;overflow:hidden;border:1px solid var(--border);box-shadow:0 4px 12px -6px rgba(0,0,0,.3);}
+.shot-thumb img{width:100%;height:100%;object-fit:cover;}
+.shot-thumb .rm{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.shot-foot{display:flex;gap:10px;margin-top:14px;align-items:center;}
+.shot-results{margin-top:6px;display:flex;flex-direction:column;gap:12px;}
+.shot-sg{border:1px solid var(--border);border-radius:14px;padding:13px 14px;background:rgba(255,255,255,0.55);display:flex;gap:13px;align-items:flex-start;}
+.shot-sg .sg-thumb{width:54px;height:54px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);}
+.shot-sg .sg-body{flex:1;min-width:0;}
+.shot-sg .sg-ai{font-size:11px;font-weight:800;color:var(--green3);letter-spacing:.03em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.shot-sg .sg-title{width:100%;border:1px solid var(--border);border-radius:9px;padding:8px 10px;font:inherit;font-size:14px;font-weight:700;color:var(--text);background:var(--card);}
+.shot-sg .sg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px;}
+.shot-sg .sg-brands{display:flex;gap:5px;flex-wrap:wrap;}
+.shot-sg .sg-brands .brand-logo{width:30px;height:30px;}
+.shot-sg .sg-urg{font:inherit;font-size:12px;padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);}
+.shot-sg .sg-date{font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);}
+.shot-sg .sg-acts{display:flex;gap:8px;margin-top:11px;}
+.shot-sg .sg-add{flex:1;justify-content:center;white-space:nowrap;}
+.shot-sg .sg-acts .ts-btn{white-space:nowrap;}
+.shot-sg .sg-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35;}
+.ts-shot{margin-top:8px;}
+.ts-shot img{width:100%;border-radius:12px;border:1px solid var(--border);display:block;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -854,6 +883,21 @@ body{font-family:var(--font);color:var(--text);background:
         <button class="brand-logo gte" data-brand="gte"><span>GTE</span></button>
         <button class="brand-logo" data-brand="per"><img src="logo-ti.svg"/></button>
       </div>
+    </div>
+    <div class="card col4" id="shotCard">
+      <div class="card-head"><div class="card-title">📷 Screenshot → Task</div><span class="card-sub">drop an image · AI drafts it · you confirm</span></div>
+      <div class="shot-drop" id="shotDrop">
+        <input type="file" id="shotFile" accept="image/*" multiple hidden/>
+        <div class="shot-drop-icon">🖼️</div>
+        <div class="shot-drop-t">Drop screenshots here</div>
+        <div class="shot-drop-s">or <span class="shot-pick">choose files</span> · paste with ⌘V</div>
+      </div>
+      <div class="shot-thumbs" id="shotThumbs"></div>
+      <div class="shot-foot" id="shotFoot" style="display:none;">
+        <button class="btn-primary" id="shotAnalyzeBtn" onclick="analyzeShots()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg> Analyze with AI</button>
+        <button class="ts-btn" onclick="clearShots()">Clear</button>
+      </div>
+      <div class="shot-results" id="shotResults"></div>
     </div>
     <div class="card col4">
      <div class="kanban" id="kanban"></div>
@@ -1309,6 +1353,7 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="ts-field"><span class="ts-k">Next step</span><span class="ts-v editable" contenteditable="true" spellcheck="false" id="tsNext" onblur="setTaskNext(this.textContent)">—</span></div>
     <div class="ts-section-label">Notes</div>
     <div class="ts-notes editable" contenteditable="true" spellcheck="false" id="tsNotes" onblur="setTaskNotes(this.textContent)"></div>
+    <div class="ts-shot" id="tsShot"></div>
     <div class="ts-ai-result" id="tsAiResult"></div>
     <div class="ts-actions" style="flex-direction:column;align-items:stretch;">
       <button class="btn-primary" style="justify-content:center;" onclick="completeWithAI()">✦ Complete with AI</button>
@@ -1562,7 +1607,7 @@ function renderTasks(){
 }
 function toggleTaskDone(id){var t=findTask(id);if(t){t.status=t.status==='done'?'pending':'done';saveTasks();renderTasks();}}
 function editTask(id,v){var t=findTask(id);if(t){t.text=(v||'').trim()||t.text;saveTasks();}}
-function removeTask(id){TASKS=TASKS.filter(function(t){return t.id!==id;});saveTasks();renderTasks();}
+function removeTask(id){TASKS=TASKS.filter(function(t){return t.id!==id;});try{localStorage.removeItem('jd_img_'+id);}catch(e){}saveTasks();renderTasks();}
 function addTaskFromForm(){
   var inp=document.getElementById('taskInput');var text=(inp.value||'').trim();if(!text)return;
   var card=inp.closest('.card'),sel=card.querySelector('.brand-pick .brand-logo.sel');
@@ -1629,6 +1674,7 @@ function openTaskDetail(id){
   document.getElementById('tsDue').value=t.due||'';
   document.getElementById('tsNext').textContent=t.next||'';
   document.getElementById('tsNotes').textContent=t.notes||'';
+  var shot=document.getElementById('tsShot');var simg=t.img?localStorage.getItem('jd_img_'+t.id):'';shot.innerHTML=simg?'<img src="'+simg+'" alt="screenshot"/>':'';
   var slabel=STATUS_LABEL[t.status]||'Pending';
   var sp=document.getElementById('tsStatus');sp.textContent=slabel;sp.className='status-pill '+(t.status==='done'?'sp-bank':t.status==='underway'?'sp-deck':'sp-urgent');
   document.querySelectorAll('.ts-sp').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-s')===slabel);});
@@ -1642,6 +1688,68 @@ function setTaskNext(v){var t=findTask(CURRENT_TASK_ID);if(t){t.next=(v||'').tri
 function setTaskNotes(v){var t=findTask(CURRENT_TASK_ID);if(t){t.notes=(v||'').trim();saveTasks();}}
 function markCurrentDone(){var t=findTask(CURRENT_TASK_ID);if(t){t.status='done';saveTasks();renderTasks();}closeTask();}
 function deleteCurrentTask(){if(CURRENT_TASK_ID)removeTask(CURRENT_TASK_ID);closeTask();}
+// ── Screenshot → Task ──
+var SHOTS=[];
+function downscaleImage(file,max,q){return new Promise(function(res){var fr=new FileReader();fr.onload=function(){var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>max||h>max){if(w>=h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);try{res(c.toDataURL('image/jpeg',q));}catch(e){res(fr.result);}};img.onerror=function(){res(fr.result);};img.src=fr.result;};fr.onerror=function(){res('');};fr.readAsDataURL(file);});}
+function addShotFiles(files){var arr=[].slice.call(files).filter(function(f){return /^image\//.test(f.type);});if(!arr.length)return;var done=0;arr.forEach(function(f){downscaleImage(f,1200,0.7).then(function(url){if(url)SHOTS.push({id:'s'+Date.now()+Math.round(performance.now()),url:url,name:f.name||'screenshot'});done++;if(done===arr.length)renderShots();});});}
+function renderShots(){var t=document.getElementById('shotThumbs');if(!t)return;t.innerHTML=SHOTS.map(function(s){return '<div class="shot-thumb"><img src="'+s.url+'"/><button class="rm" onclick="removeShot(\''+s.id+'\')">×</button></div>';}).join('');var f=document.getElementById('shotFoot');if(f)f.style.display=SHOTS.length?'flex':'none';}
+function removeShot(id){SHOTS=SHOTS.filter(function(s){return s.id!==id;});renderShots();}
+function clearShots(){SHOTS=[];renderShots();var r=document.getElementById('shotResults');if(r)r.innerHTML='';}
+function guessFromName(name){var n=(name||'').toLowerCase();var g={brand:'per',urg:'deck',verb:'Review'};
+  if(/invoice|bill|statement|amex|westpac|\banz\b|bankwest|receipt|\btax\b|payment|refund/.test(n)){g.brand='per';g.verb='Pay / review';g.urg='urgent';}
+  else if(/quote|switchboard|electr|gte|\bjob\b|site|cable|wiring/.test(n)){g.brand='gte';g.verb='Action';}
+  else if(/airbnb|booking|guest|reservation|check-?in/.test(n)){g.brand='ab';g.verb='Respond to';}
+  else if(/regan|rhi|hillyer/.test(n)){g.brand='rhi';g.verb='Follow up';}
+  else if(/nest|sleep/.test(n)){g.brand='ns';g.verb='Action';}
+  else if(/frenchie|wear|apparel/.test(n)){g.brand='fw';g.verb='Action';}
+  else if(/bronze/.test(n)){g.brand='be';g.verb='Action';}
+  else if(/silver|platter/.test(n)){g.brand='sp';g.verb='Action';}
+  else if(/trade|forex|chart|eurusd|xau|nasdaq|\bbtc\b/.test(n)){g.brand='tr';g.verb='Journal';}
+  var base=(name||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ').replace(/\b(screenshot|img|image|photo|pasted)\b/gi,'').replace(/\d{4}[-\s]?\d{2}[-\s]?\d{2}/g,'').replace(/\s+/g,' ').trim();
+  if(base.length>42)base=base.slice(0,42);
+  g.title=base?(g.verb+': '+base):(g.verb+' the screenshot');return g;}
+var SG_BRANDS=[['sp','logo-sp.jpg'],['be','logo-be.jpg'],['ns','logo-ns.jpg'],['rhi','logo-rhi.jpg'],['fw','logo-fw.jpg'],['tr','logo-tr.jpg'],['ab','logo-ab.jpg'],['gte','GTE'],['per','logo-ti.svg']];
+function sgBrandHTML(sel){return SG_BRANDS.map(function(b){var on=b[0]===sel?' sel':'';return b[1]==='GTE'?'<button class="brand-logo gte'+on+'" data-b="gte" onclick="sgPickBrand(this)"><span>GTE</span></button>':'<button class="brand-logo'+on+'" data-b="'+b[0]+'" onclick="sgPickBrand(this)"><img src="'+b[1]+'"/></button>';}).join('');}
+function sgPickBrand(btn){var row=btn.closest('.sg-brands');row.querySelectorAll('.brand-logo').forEach(function(x){x.classList.remove('sel');});btn.classList.add('sel');}
+function analyzeShots(){
+  if(!SHOTS.length)return;
+  var btn=document.getElementById('shotAnalyzeBtn');btn.disabled=true;btn.innerHTML='<span class="ts-spin"></span> Analyzing…';
+  setTimeout(function(){
+    document.getElementById('shotResults').innerHTML=SHOTS.map(function(s){var g=guessFromName(s.name);
+      return '<div class="shot-sg" data-shot="'+s.id+'"><img class="sg-thumb" src="'+s.url+'"/><div class="sg-body">'+
+        '<div class="sg-ai">✦ AI draft — check &amp; confirm</div>'+
+        '<input class="sg-title" value="'+esc(g.title).replace(/"/g,'&quot;')+'"/>'+
+        '<div class="sg-row"><div class="sg-brands">'+sgBrandHTML(g.brand)+'</div></div>'+
+        '<div class="sg-row"><select class="sg-urg"><option value="urgent"'+(g.urg==='urgent'?' selected':'')+'>🔴 Urgent</option><option value="deck"'+(g.urg==='deck'?' selected':'')+'>🟠 On Deck</option><option value="bank"'+(g.urg==='bank'?' selected':'')+'>🟢 In the Bank</option></select><input type="date" class="sg-date"/></div>'+
+        '<div class="sg-acts"><button class="btn-primary sg-add" onclick="addSuggestion(\''+s.id+'\')">✓ Add task</button><button class="ts-btn" onclick="discardSuggestion(\''+s.id+'\')">Discard</button></div>'+
+        '<div class="sg-note">Draft from the image name + your brands. Reading the text inside the screenshot activates when Claude is connected — the screenshot is saved on the task either way.</div>'+
+      '</div></div>';
+    }).join('');
+    btn.disabled=false;btn.innerHTML='✦ Analyze with AI';
+  },850);
+}
+function discardSuggestion(shotId){var el=document.querySelector('.shot-sg[data-shot="'+shotId+'"]');if(el)el.remove();SHOTS=SHOTS.filter(function(s){return s.id!==shotId;});renderShots();}
+function addSuggestion(shotId){
+  var el=document.querySelector('.shot-sg[data-shot="'+shotId+'"]');if(!el)return;
+  var title=(el.querySelector('.sg-title').value||'').trim()||'Task from screenshot';
+  var bsel=el.querySelector('.sg-brands .brand-logo.sel');var brand=bsel?bsel.getAttribute('data-b'):'per';
+  var urg=el.querySelector('.sg-urg').value||'deck';var due=el.querySelector('.sg-date').value||'';
+  var shot=SHOTS.filter(function(s){return s.id===shotId;})[0];var id='t'+Date.now();var hasImg=false;
+  if(shot){try{localStorage.setItem('jd_img_'+id,shot.url);hasImg=true;}catch(e){alert('That image is too big to store on this device — task added without the screenshot.');}}
+  TASKS.push({id:id,text:title,brand:brand,urg:urg,status:'pending',next:'',due:due,notes:'',img:hasImg});
+  saveTasks();renderTasks();
+  el.remove();SHOTS=SHOTS.filter(function(s){return s.id!==shotId;});renderShots();
+}
+(function wireShotDrop(){
+  var drop=document.getElementById('shotDrop'),file=document.getElementById('shotFile');
+  if(!drop||!file)return;
+  drop.addEventListener('click',function(){file.click();});
+  file.addEventListener('change',function(){addShotFiles(file.files);file.value='';});
+  ['dragenter','dragover'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('over');});});
+  drop.addEventListener('dragleave',function(e){if(e.target===drop)drop.classList.remove('over');});
+  drop.addEventListener('drop',function(e){e.preventDefault();drop.classList.remove('over');if(e.dataTransfer&&e.dataTransfer.files)addShotFiles(e.dataTransfer.files);});
+  document.addEventListener('paste',function(e){var pg=document.getElementById('page-tasks');if(!pg||pg.offsetParent===null)return;var items=(e.clipboardData||{}).items||[],fs=[];for(var i=0;i<items.length;i++){if(/^image\//.test(items[i].type)){var f=items[i].getAsFile();if(f)fs.push(f);}}if(fs.length)addShotFiles(fs);});
+})();
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
