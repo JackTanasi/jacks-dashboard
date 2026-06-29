@@ -442,7 +442,8 @@ body{font-family:var(--font);color:var(--text);background:
 .cal-nav button{width:32px;height:32px;border-radius:10px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-family:inherit;font-size:14px;color:var(--text2);}
 .cal-gconnect{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);box-shadow:var(--shadow);}
 .cal-gdot{width:8px;height:8px;border-radius:50%;background:#34a853;}
-.cal-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.cal-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);position:relative;}
+.cal-empty{position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 22px;font-size:13.5px;font-weight:600;color:var(--text2);box-shadow:0 8px 28px -8px rgba(0,0,0,0.2);text-align:center;z-index:3;max-width:340px;}
 .cal-head{display:grid;grid-template-columns:56px repeat(7,1fr);border-bottom:1px solid var(--border);}
 .cal-corner{}
 .cal-daylabel{padding:9px 4px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text3);border-left:1px solid var(--border);}
@@ -817,7 +818,7 @@ body{font-family:var(--font);color:var(--text);background:
       <div class="cal-nav"><button title="Previous">‹</button><button title="Next">›</button></div>
       <div class="cal-range">22 – 28 June 2026</div>
       <div style="margin-left:auto;display:flex;gap:10px;">
-        <button class="cal-gconnect"><span class="cal-gdot"></span>Google Calendar · connected</button>
+        <button class="cal-gconnect"><span class="cal-gdot" style="background:#e0a800;"></span>Connect Google Calendar</button>
         <button class="btn-primary" onclick="openEvModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> New event</button>
       </div>
     </div>
@@ -1381,7 +1382,8 @@ document.addEventListener('click',function(e){
 })();
 
 // ── Calendar (week view, mirrors Google Calendar) ──
-var CAL_EVENTS=[
+var CAL_EVENTS=[];           /* empty until Google Calendar is connected */
+var _CAL_SAMPLE=[
   {d:0,s:7.25,e:8,t:'louis',m:'7:15–8 AM',c:'green'},
   {d:0,s:8,e:9,t:'Weekly Call · Ross, Regan, Jack',m:'8 AM · zoom',c:'grey'},
   {d:0,s:9.5,e:10,t:'noel systems',m:'9:30–10 AM',c:'yellow'},
@@ -1435,13 +1437,14 @@ function renderCalendar(){
     col+='</div>';cols+=col;
   }
   wrap.innerHTML=head+'<div class="cal-body">'+gutter+cols+'</div>';
+  if(!CAL_EVENTS.length)wrap.insertAdjacentHTML('beforeend','<div class="cal-empty">📅 Nothing here yet — connect Google Calendar and your real events (with their colours) will show up.</div>');
 }
 function calTime(s){var h=Math.floor(s),mn=Math.round((s-h)*60),ap=h<12?'am':'pm',hr=h%12||12;return hr+(mn?':'+(mn<10?'0':'')+mn:'')+ap;}
 function renderToday(){
   var box=document.getElementById('todayAgenda');if(!box)return;
   var colors={green:'#34a853',yellow:'#e0a800',pink:'#e57399',blue:'#4a7fd6',grey:'#9aa3a0'};
   var evs=CAL_EVENTS.filter(function(e){return e.d===6;}).sort(function(a,b){return a.s-b.s;});
-  if(!evs.length){box.innerHTML='<div class="tday-empty">Nothing scheduled today 🎉</div>';return;}
+  if(!evs.length){box.innerHTML='<div class="tday-empty">Connect Google Calendar to see today\'s schedule.</div>';return;}
   box.innerHTML=evs.map(function(e){return '<div class="tday-row"><span class="tday-dot" style="background:'+(colors[e.c]||'#999')+'"></span><span class="tday-time">'+calTime(e.s)+'</span><span class="tday-title">'+e.t+'</span></div>';}).join('');
 }
 function openEvModal(){document.getElementById('evModal').classList.add('show');}
