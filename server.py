@@ -23,9 +23,11 @@ class Handler(SimpleHTTPRequestHandler):
     """Static handler with sane headers and an index.html fallback."""
 
     def end_headers(self):
-        # Always revalidate the app shell so a redeploy is picked up instantly;
-        # everything else (fonts/libs) comes from third-party CDNs anyway.
-        self.send_header("Cache-Control", "no-cache")
+        # Never cache the app shell — iOS home-screen web apps cling to stale
+        # snapshots with mere "no-cache", so force a fresh fetch every load.
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         super().end_headers()
