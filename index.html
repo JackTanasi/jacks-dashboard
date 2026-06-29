@@ -352,6 +352,11 @@ body{font-family:var(--font);color:var(--text);background:
 .kcard-logo.gte{background:linear-gradient(140deg,#5cb3ec,#3088ce);}.kcard-logo.gte span{color:#fff;font-weight:800;font-size:9px;}
 .kcard .kt{font-size:12.5px;font-weight:600;line-height:1.3;flex:1;}
 .kcard .km{font-size:11px;color:var(--text3);}
+.li-x{margin-left:6px;width:20px;height:20px;border-radius:50%;border:none;background:transparent;color:var(--text3);font-size:15px;cursor:pointer;flex-shrink:0;line-height:1;font-family:inherit;opacity:0;transition:opacity .15s;}
+.goal-row:hover .li-x,.task-row:hover .li-x{opacity:1;}
+.li-x:hover{background:rgba(220,80,60,0.14);color:#c2462f;}
+.goal-empty,.task-empty{font-size:12.5px;color:var(--text3);padding:16px 4px;text-align:center;}
+.kcard-empty{font-size:11px;color:var(--text3);padding:8px 2px;}
 .kcard-logo{cursor:pointer;}
 .tf-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
 .tf-row .brand-logo{width:40px;height:40px;}
@@ -694,9 +699,9 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="card hero col2">
       <svg class="spark" width="130" height="50" viewBox="0 0 130 50"><polyline points="0,38 18,30 34,34 52,18 70,24 88,10 106,16 130,6" fill="none" stroke="rgba(205,168,132,0.8)" stroke-width="2.5" stroke-linecap="round"/><polyline points="0,38 18,30 34,34 52,18 70,24 88,10 106,16 130,6 130,50 0,50" fill="rgba(205,168,132,0.12)" stroke="none"/></svg>
       <div class="card-head"><div class="card-title">This Week's Output</div></div>
-      <div class="hero-num">12<span> tasks done</span></div>
+      <div class="hero-num"><span id="heroDone">0</span><span> tasks done</span></div>
       <div style="font-size:12.5px;color:rgba(243,230,211,0.7);">Reward tracker · 7 / 10 toward this week's prize 🏆</div>
-      <div class="hero-foot"><div><b>5</b><span>Pending</span></div><div><b>3</b><span>Underway</span></div><div><b>2</b><span>Out of hands</span></div><div><b>12</b><span>Completed</span></div></div>
+      <div class="hero-foot"><div><b id="heroPending">0</b><span>Pending</span></div><div><b id="heroUnderway">0</b><span>Underway</span></div><div><b id="heroOoc">0</b><span>Out of hands</span></div><div><b id="heroDoneCount">0</b><span>Completed</span></div></div>
     </div>
 
     <div class="card nav-card today-card col2" data-goto="calendar"><div class="card-head"><div class="card-title">📅 Today</div><span class="card-sub" id="todayDate">Sun 28 Jun</span></div>
@@ -706,7 +711,7 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="card col2">
       <div class="card-head"><div class="card-title">＋ Add a Task</div><span class="card-sub">type or 🎤 speak</span></div>
       <div class="add-input-wrap">
-        <input class="add-input" id="taskInput" placeholder="What needs doing?"/>
+        <input class="add-input" id="taskInput" placeholder="What needs doing?" onkeydown="if(event.key==='Enter')addTaskFromForm()"/>
         <button class="mic-btn" id="micBtn" title="Voice your task"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
       </div>
       <div class="voice-hint" id="voiceHint">🎤 Tap the mic to speak your task</div>
@@ -723,27 +728,19 @@ body{font-family:var(--font);color:var(--text);background:
       </div>
       <div class="addtask-foot">
         <div class="urg-pills"><button class="urg sel">🔴 Urgent</button><button class="urg">🟠 On Deck</button><button class="urg">🟢 In the Bank</button></div>
-        <button class="btn-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add Task</button>
+        <button class="btn-primary" onclick="addTaskFromForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add Task</button>
       </div>
     </div>
 
     <div class="card col2">
-      <div class="card-head"><div class="card-title">Today's Tasks</div><span class="card-sub">5 active</span></div>
-      <div class="task-row"><div class="task-check"></div><div class="task-logo"><img src="logo-sp.jpg"/></div><div class="task-main"><div class="t">Approve Silver Platter Q3 campaign</div><div class="m">Next: send to Regan · due 5pm</div></div><span class="status-pill sp-urgent">Urgent</span></div>
-      <div class="task-row"><div class="task-check"></div><div class="task-logo"><img src="logo-ns.jpg"/></div><div class="task-main"><div class="t">Review Nest mattress supplier quote</div><div class="m">Next: compare 3 quotes</div></div><span class="status-pill sp-deck">On Deck</span></div>
-      <div class="task-row"><div class="task-check done"></div><div class="task-logo"><img src="logo-be.jpg"/></div><div class="task-main"><div class="t">Post Bronze Era reel</div><div class="m">Completed · 2:14pm</div></div><span class="status-pill sp-bank">Done</span></div>
-      <div class="task-row"><div class="task-check"></div><div class="task-logo"><img src="logo-tr.jpg"/></div><div class="task-main"><div class="t">Test a trade — EUR/USD setup</div><div class="m">Next: journal the entry</div></div><span class="status-pill sp-bank">In the Bank</span></div>
-      <div class="task-row"><div class="task-check"></div><div class="task-logo gte"><span>GTE</span></div><div class="task-main"><div class="t">Book GTE switchboard upgrade</div><div class="m">Dad's business · quote the Smith job</div></div><span class="status-pill sp-deck">On Deck</span></div>
+      <div class="card-head"><div class="card-title">Today's Tasks</div><span class="card-sub">0 active</span></div>
+      <div id="homeTasks"></div>
     </div>
 
     <div class="card col2">
-      <div class="card-head"><div class="card-title">🎯 2026 Goals</div><span class="goals-prog">4 / 12 hit</span></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">🏋️ Squat 140kg</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">💰 $1M Tanasi AUM</span><div class="gbar"><i style="width:65%"></i></div></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">🛏️ Launch Nest retail line</span><div class="gbar"><i style="width:40%"></i></div></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">✈️ Family trip booked</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">📚 Read 24 books</span><div class="gbar"><i style="width:50%"></i></div></div>
-      <input class="goal-add" placeholder="+ Add a goal"/>
+      <div class="card-head"><div class="card-title">🎯 2026 Goals</div><span class="goals-prog" id="homeGoalsCount">0 / 0 hit</span></div>
+      <div id="homeGoals"></div>
+      <input class="goal-add" placeholder="+ Add a goal" onkeydown="if(event.key==='Enter')addGoal(this)"/>
     </div>
 
     <div class="card nav-card" data-goto="financial"><div class="card-head"><div class="stat-ico" style="background:rgba(3,54,47,0.09)"><svg viewBox="0 0 24 24" style="stroke:var(--green3)"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg></div><span class="card-sub">Net Cash</span></div>
@@ -791,25 +788,7 @@ body{font-family:var(--font);color:var(--text);background:
       </div>
     </div>
     <div class="card col4">
-     <div class="kanban">
-      <div class="kcol"><div class="kcol-head">Pending <span>5</span></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-sp.jpg"/></div><div class="kt">Approve Q3 campaign</div></div><div class="km">Due 5pm · Urgent</div></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-ns.jpg"/></div><div class="kt">Review supplier quote</div></div><div class="km">Compare 3 quotes</div></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo gte"><span>GTE</span></div><div class="kt">Book switchboard job</div></div><div class="km">Quote the Smith job</div></div>
-      </div>
-      <div class="kcol"><div class="kcol-head">Underway <span>3</span></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-ti.svg"/></div><div class="kt">Draft investor update</div></div><div class="km">Q2 numbers + commentary</div></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-be.jpg"/></div><div class="kt">Edit Bronze Era reel</div></div><div class="km">v2 cut</div></div>
-      </div>
-      <div class="kcol"><div class="kcol-head">Out of My Control <span>2</span></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-ns.jpg"/></div><div class="kt">Awaiting supplier quote</div></div><div class="km">Chased Monday</div></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo gte"><span>GTE</span></div><div class="kt">Council permit</div></div><div class="km">Submitted · waiting</div></div>
-      </div>
-      <div class="kcol"><div class="kcol-head">Completed <span>12</span></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-be.jpg"/></div><div class="kt">Post Bronze Era reel</div></div><div class="km">2:14pm ✓</div></div>
-        <div class="kcard"><div class="kcard-top"><div class="kcard-logo"><img src="logo-sp.jpg"/></div><div class="kt">Send SP newsletter</div></div><div class="km">Yesterday ✓</div></div>
-      </div>
-     </div>
+     <div class="kanban" id="kanban"></div>
     </div>
    </div>
   </section>
@@ -817,23 +796,16 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── GOALS ───────── -->
   <section class="page" id="page-goals">
    <div class="grid">
-    <div class="card hero col2"><div class="card-head"><div class="card-title">🎯 2026 Goals</div></div><div class="hero-num">4<span> / 12 hit</span></div><div style="font-size:12.5px;color:rgba(243,230,211,0.7);margin-top:6px;">8 to go — on track for 6+ by year end.</div></div>
+    <div class="card hero col2"><div class="card-head"><div class="card-title">🎯 2026 Goals</div></div><div class="hero-num" id="goalsHeroCount">0<span> / 0 hit</span></div><div style="font-size:12.5px;color:rgba(243,230,211,0.7);margin-top:6px;">Add your goals for the year below.</div></div>
     <div class="card col2"><div class="card-head"><div class="card-title">By Area</div></div>
       <div class="goal-row"><span class="gt">💪 Health & Fitness</span><div class="gbar"><i style="width:70%"></i></div></div>
       <div class="goal-row"><span class="gt">💰 Wealth</span><div class="gbar"><i style="width:55%"></i></div></div>
       <div class="goal-row"><span class="gt">🚀 Business</span><div class="gbar"><i style="width:40%"></i></div></div>
       <div class="goal-row"><span class="gt">🧠 Personal</span><div class="gbar"><i style="width:60%"></i></div></div>
     </div>
-    <div class="card col4"><div class="card-head"><div class="card-title">All Goals</div><span class="goals-prog">4 / 12 hit</span></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">🏋️ Squat 140kg</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">✈️ Family trip booked</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">📖 Daily Bible reading habit</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc done"></div><span class="gt">🧊 Cold plunge 100 days</span><b>Done ✓</b></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">💰 $1M Tanasi AUM</span><div class="gbar"><i style="width:65%"></i></div></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">🛏️ Launch Nest retail line</span><div class="gbar"><i style="width:40%"></i></div></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">📚 Read 24 books</span><div class="gbar"><i style="width:50%"></i></div></div>
-      <div class="goal-row"><div class="gc"></div><span class="gt">⚡ Grow GTE to $500k revenue</span><div class="gbar"><i style="width:30%"></i></div></div>
-      <input class="goal-add" placeholder="+ Add a goal"/>
+    <div class="card col4"><div class="card-head"><div class="card-title">All Goals</div><span class="goals-prog" id="allGoalsCount">0 / 0 hit</span></div>
+      <div id="allGoals"></div>
+      <input class="goal-add" placeholder="+ Add a goal" onkeydown="if(event.key==='Enter')addGoal(this)"/>
     </div>
    </div>
   </section>
@@ -1486,6 +1458,67 @@ function saveEvent(){
   document.getElementById('evTitle').value='';
 }
 renderCalendar();renderToday();
+
+// ── Real tasks + goals (editable, saved per device; syncs everywhere once Firebase is wired) ──
+function jload(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v||d;}catch(e){return d;}}
+function jsave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+var TASKS=jload('jd_tasks',[]), GOALS=jload('jd_goals',[]);
+function saveTasks(){jsave('jd_tasks',TASKS);} function saveGoals(){jsave('jd_goals',GOALS);}
+var BRAND_LOGO={sp:'logo-sp.jpg',be:'logo-be.jpg',ns:'logo-ns.jpg',rhi:'logo-rhi.jpg',fw:'logo-fw.jpg',tr:'logo-tr.jpg',ab:'logo-ab.jpg',per:'logo-ti.svg'};
+var TITLE2BRAND={'Silver Platter':'sp','Bronze Era':'be','Nest':'ns','Regan Hillyer':'rhi','Frenchie Wear':'fw','Trading':'tr','Airbnb':'ab','GTE Electrical (Dad)':'gte','GTE Electrical':'gte','Personal':'per'};
+function logoH(b){return b==='gte'?'<span>GTE</span>':'<img src="'+(BRAND_LOGO[b]||'logo-ti.svg')+'"/>';}
+function logoC(b){return b==='gte'?' gte':'';}
+var URG={urgent:['sp-urgent','Urgent'],deck:['sp-deck','On Deck'],bank:['sp-bank','In the Bank']};
+var COLS=[['pending','Pending'],['underway','Underway'],['ooc','Out of My Control'],['done','Completed']];
+function findTask(id){for(var i=0;i<TASKS.length;i++)if(TASKS[i].id===id)return TASKS[i];return null;}
+function setTxt(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+function renderTasks(){
+  var ht=document.getElementById('homeTasks');
+  if(ht){
+    var active=TASKS.filter(function(t){return t.status!=='done';});
+    ht.innerHTML=active.length?active.map(function(t){var u=URG[t.urg]||URG.urgent;
+      return '<div class="task-row" data-id="'+t.id+'"><div class="task-check" onclick="toggleTaskDone(\''+t.id+'\')"></div><div class="task-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="task-main"><div class="t editable" contenteditable="true" spellcheck="false" onblur="editTask(\''+t.id+'\',this.textContent)">'+esc(t.text)+'</div><div class="m">'+(t.next?'Next: '+esc(t.next):'&nbsp;')+'</div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span><button class="li-x" onclick="removeTask(\''+t.id+'\')">×</button></div>';
+    }).join(''):'<div class="task-empty">No tasks yet — add one with the form on the left.</div>';
+    var sub=ht.closest('.card').querySelector('.card-sub');if(sub)sub.textContent=active.length+' active';
+  }
+  var kb=document.getElementById('kanban');
+  if(kb)kb.innerHTML=COLS.map(function(c){var items=TASKS.filter(function(t){return t.status===c[0];});
+    var cards=items.length?items.map(function(t){return '<div class="kcard" data-id="'+t.id+'" data-brand="'+t.brand+'"><div class="kcard-top"><div class="kcard-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="kt">'+esc(t.text)+'</div></div><div class="km">'+(t.next?esc(t.next):(URG[t.urg]?URG[t.urg][1]:''))+'</div></div>';}).join(''):'<div class="kcard-empty">—</div>';
+    return '<div class="kcol"><div class="kcol-head">'+c[1]+' <span>'+items.length+'</span></div>'+cards+'</div>';
+  }).join('');
+  setTxt('heroPending',TASKS.filter(function(t){return t.status==='pending';}).length);
+  setTxt('heroUnderway',TASKS.filter(function(t){return t.status==='underway';}).length);
+  setTxt('heroOoc',TASKS.filter(function(t){return t.status==='ooc';}).length);
+  var done=TASKS.filter(function(t){return t.status==='done';}).length;
+  setTxt('heroDone',done);setTxt('heroDoneCount',done);
+}
+function toggleTaskDone(id){var t=findTask(id);if(t){t.status=t.status==='done'?'pending':'done';saveTasks();renderTasks();}}
+function editTask(id,v){var t=findTask(id);if(t){t.text=(v||'').trim()||t.text;saveTasks();}}
+function removeTask(id){TASKS=TASKS.filter(function(t){return t.id!==id;});saveTasks();renderTasks();}
+function addTaskFromForm(){
+  var inp=document.getElementById('taskInput');var text=(inp.value||'').trim();if(!text)return;
+  var card=inp.closest('.card'),sel=card.querySelector('.brand-pick .brand-logo.sel');
+  var brand=sel?(TITLE2BRAND[sel.getAttribute('title')]||'per'):'per';
+  var su=card.querySelector('.urg.sel'),urg='urgent';
+  if(su){var x=su.textContent;urg=x.indexOf('Deck')>-1?'deck':x.indexOf('Bank')>-1?'bank':'urgent';}
+  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:''});
+  saveTasks();renderTasks();inp.value='';
+}
+function renderGoals(){
+  var done=GOALS.filter(function(g){return g.done;}).length,total=GOALS.length;
+  var lbl=done+' / '+total+' hit';
+  setTxt('homeGoalsCount',lbl);setTxt('allGoalsCount',lbl);
+  var hero=document.getElementById('goalsHeroCount');if(hero)hero.innerHTML=done+'<span> / '+total+' hit</span>';
+  function rows(){return GOALS.length?GOALS.map(function(g,i){return '<div class="goal-row" data-i="'+i+'"><div class="gc'+(g.done?' done':'')+'" onclick="toggleGoal('+i+')"></div><span class="gt editable" contenteditable="true" spellcheck="false" onblur="editGoal('+i+',this.textContent)">'+esc(g.text)+'</span>'+(g.done?'<b>Done ✓</b>':'')+'<button class="li-x" onclick="removeGoal('+i+')">×</button></div>';}).join(''):'<div class="goal-empty">No goals yet — add your first below.</div>';}
+  var hg=document.getElementById('homeGoals');if(hg)hg.innerHTML=rows();
+  var ag=document.getElementById('allGoals');if(ag)ag.innerHTML=rows();
+}
+function toggleGoal(i){if(GOALS[i]){GOALS[i].done=!GOALS[i].done;saveGoals();renderGoals();}}
+function editGoal(i,v){if(GOALS[i]){GOALS[i].text=(v||'').trim()||GOALS[i].text;saveGoals();}}
+function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
+function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
+renderTasks();renderGoals();
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
