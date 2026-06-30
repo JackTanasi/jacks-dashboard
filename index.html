@@ -675,7 +675,12 @@ body{font-family:var(--font);color:var(--text);background:
     appId: "1:570236729187:web:ca992404746ceb188e0556"
   };
   const db = getFirestore(initializeApp(firebaseConfig));
-  const DOC_REF = doc(db, 'users', 'jack_redesign');   // separate doc so it won't clash with the classic app's data
+  // SAFETY: only the real deployed domain touches live data. Any localhost/preview/file build
+  // is routed to a throwaway sandbox doc, so testing can NEVER overwrite Jack's real data.
+  const IS_LIVE = /(^|\.)onrender\.com$/.test(location.hostname) || /tanasi/i.test(location.hostname);
+  const DOC_ID = IS_LIVE ? 'jack_redesign' : 'jack_redesign_sandbox';
+  const DOC_REF = doc(db, 'users', DOC_ID);
+  console.log(IS_LIVE ? 'Firebase: LIVE doc (jack_redesign)' : 'Firebase: SANDBOX doc (jack_redesign_sandbox) — live data is safe');
   const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
