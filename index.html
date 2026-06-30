@@ -685,6 +685,25 @@ body{font-family:var(--font);color:var(--text);background:
 .sort-pill.sel{background:var(--green);color:#fff;border-color:var(--green);}
 .show-more{width:100%;border:none;background:transparent;color:var(--green3);font:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:11px;margin-top:4px;border-top:1px solid var(--border);}
 .show-more:hover{background:rgba(3,54,47,0.04);}
+/* Airbnb tab */
+.ab-launch{display:flex;align-items:center;gap:14px;background:linear-gradient(140deg,#ff5a5f,#e0484d);text-decoration:none;padding:22px;}
+.ab-launch-logo{font-size:28px;width:58px;height:58px;border-radius:18px;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ab-launch-title{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.01em;}
+.ab-launch-sub{font-size:12.5px;color:rgba(255,255,255,0.9);margin-top:3px;}
+.ab-agent-card{display:flex;flex-direction:column;}
+.ab-chat{max-height:380px;min-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px 12px;}
+.ab-msg{max-width:88%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;}
+.ab-msg.ai{background:var(--card);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:5px;}
+.ab-msg.me{background:var(--green);color:#fff;align-self:flex-end;border-bottom-right-radius:5px;}
+.ab-msg-files{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px;font-size:11px;opacity:.85;}
+.ab-files{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
+.ab-chip{font-size:11.5px;background:rgba(3,54,47,0.08);color:var(--green3);padding:5px 9px;border-radius:8px;font-weight:600;}
+.ab-chip button{border:none;background:none;color:var(--green3);cursor:pointer;font-weight:800;font-size:13px;}
+.ab-input-row{display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:12px;margin-top:auto;}
+.ab-attach{border:1px solid var(--border);background:var(--card);border-radius:10px;width:42px;height:42px;font-size:16px;cursor:pointer;flex-shrink:0;}
+.ab-q{flex:1;border:1px solid var(--border);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px;background:var(--card);color:var(--text);min-width:0;}
+.ab-send{background:var(--green);color:#fff;border:none;border-radius:11px;padding:0 18px;font:inherit;font-weight:800;cursor:pointer;flex-shrink:0;}
+.ab-foot{font-size:11px;color:var(--muted);margin-top:9px;text-align:center;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -1136,10 +1155,25 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── AIRBNB ───────── -->
   <section class="page" id="page-airbnb">
    <div class="grid">
-    <div class="card hero col2"><div class="card-head"><div class="card-title">🏡 Airbnb</div></div><div class="hero-num" style="font-size:28px;">Your stays, synced</div><div style="font-size:12.5px;color:rgba(243,230,211,0.7);margin-top:8px;">Link your Airbnb host account to see bookings, occupancy & payouts here.</div><button class="btn-primary" style="margin-top:16px;background:linear-gradient(135deg,#ff5a5f,#e0484d);">🔗 Link my Airbnb</button></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">Upcoming Stays</div><span class="card-sub">placeholder</span></div><div class="coming"><div class="big">📅</div><div>Next check-ins & check-outs appear here once linked.</div></div></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">Occupancy · 30d</div><span class="card-sub">placeholder</span></div><div class="coming"><div class="big">📊</div><div>Nights booked vs available.</div></div></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">Payouts</div><span class="card-sub">placeholder</span></div><div class="coming"><div class="big">💸</div><div>Upcoming & recent Airbnb payouts.</div></div></div>
+    <a class="card ab-launch col2" href="https://www.airbnb.com/hosting" target="_blank" rel="noopener">
+      <div class="ab-launch-logo">🏡</div>
+      <div><div class="ab-launch-title">Open Airbnb Host ↗</div><div class="ab-launch-sub">Bookings, calendar & payouts on airbnb.com</div></div>
+    </a>
+    <div class="card col2"><div class="card-head"><div class="card-title">🏡 Airbnb Tasks</div><span class="card-sub" id="abTaskCount">0 open</span></div>
+      <div id="airbnbTasks"></div>
+      <button class="show-more" style="border-top:1px solid var(--border);" onclick="openAddTask('ab')">＋ Add an Airbnb task</button>
+    </div>
+    <div class="card col4 ab-agent-card"><div class="card-head"><div class="card-title">✦ Airbnb Agent</div><span class="card-sub">ask · import · analyse</span></div>
+      <div class="ab-chat" id="abChat"></div>
+      <div class="ab-files" id="abFiles"></div>
+      <div class="ab-input-row">
+        <input type="file" id="abFile" multiple hidden accept="image/*,.pdf,.csv,.xlsx,.xls,.txt"/>
+        <button class="ab-attach" onclick="document.getElementById('abFile').click()" title="Import statements / files">📎</button>
+        <input id="abInput" class="ab-q" placeholder="e.g. cleaning charges over the past year" onkeydown="if(event.key==='Enter')sendAbMsg()"/>
+        <button class="ab-send" onclick="sendAbMsg()">Send</button>
+      </div>
+      <div class="ab-foot">Import statements/screenshots with 📎, then ask. Real number-crunching activates when Claude is connected (Settings → API key).</div>
+    </div>
    </div>
   </section>
 
@@ -1758,6 +1792,7 @@ function renderTasks(){
   setTxt('heroOoc',TASKS.filter(function(t){return t.status==='ooc';}).length);
   var done=TASKS.filter(function(t){return t.status==='done';}).length;
   setTxt('heroDone',done);setTxt('heroDoneCount',done);
+  if(window.renderAirbnbTasks)renderAirbnbTasks();
 }
 function toggleTaskDone(id){var t=findTask(id);if(t){t.status=t.status==='done'?'pending':'done';saveTasks();renderTasks();}}
 function editTask(id,v){var t=findTask(id);if(t){t.text=(v||'').trim()||t.text;saveTasks();}}
@@ -2047,6 +2082,43 @@ function toggleVaultEdit(){vaultEditing=!vaultEditing;var b=document.getElementB
 function addVault(){VAULT.push({title:'New video',url:''});renderVault();}
 function removeVault(i){VAULT.splice(i,1);renderVault();}
 renderVault();
+// ── Airbnb tab: tasks widget + agent ──
+function renderAirbnbTasks(){
+  var c=document.getElementById('airbnbTasks');if(!c)return;
+  var items=TASKS.filter(function(t){return t.brand==='ab'&&t.status!=='done';});
+  c.innerHTML=items.length?items.map(function(t){var u=URG[t.urg]||URG.urgent;
+    return '<div class="task-row" data-id="'+t.id+'"><div class="task-check" onclick="event.stopPropagation();toggleTaskDone(\''+t.id+'\')" title="Mark done"></div><div class="task-open" onclick="openTaskDetail(\''+t.id+'\')"><div class="task-main"><div class="t">'+esc(t.text)+'</div><div class="m">'+rowMeta(t)+'</div></div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span></div>';
+  }).join(''):'<div class="task-empty">No Airbnb tasks yet — add one below, or tag any task with the Airbnb logo.</div>';
+  var cnt=document.getElementById('abTaskCount');if(cnt)cnt.textContent=items.length+' open';
+}
+var AB_FILES=[];
+function loadAbChat(){try{return JSON.parse(localStorage.getItem('jd_ab_chat')||'[]');}catch(e){return [];}}
+function saveAbChat(c){try{localStorage.setItem('jd_ab_chat',JSON.stringify(c.slice(-40)));}catch(e){}}
+function renderAbChat(){
+  var box=document.getElementById('abChat');if(!box)return;
+  var c=loadAbChat();
+  if(!c.length){box.innerHTML='<div class="ab-msg ai">Hey Jack 👋 I\'m your Airbnb analyst. Ask me things like <b>“cleaning charges over the past year”</b> or <b>“profit on 134 Thompsons”</b>, and import statements or screenshots with 📎. I\'ll tell you exactly what to upload, then crunch the numbers.</div>';return;}
+  box.innerHTML=c.map(function(m){var f=(m.files&&m.files.length)?'<div class="ab-msg-files">'+m.files.map(function(n){return '<span>📎 '+esc(n)+'</span>';}).join('')+'</div>':'';return '<div class="ab-msg '+(m.role==='user'?'me':'ai')+'">'+esc(m.text).replace(/\n/g,'<br>')+f+'</div>';}).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function renderAbFiles(){var el=document.getElementById('abFiles');if(!el)return;el.innerHTML=AB_FILES.map(function(f,i){return '<span class="ab-chip">📎 '+esc(f)+' <button onclick="abRmFile('+i+')">×</button></span>';}).join('');}
+function abRmFile(i){AB_FILES.splice(i,1);renderAbFiles();}
+function abAgentReply(q,n){
+  if(n>0)return 'Got '+n+' file'+(n>1?'s':'')+' 📎 — held and ready. To actually read '+(n>1?'them':'it')+' and answer “'+q+'”, connect Claude in Settings → API key. Then I\'ll pull the numbers straight from your statements.';
+  if(/clean/i.test(q))return 'For cleaning charges: tap 📎 and import your Airbnb payout CSVs or bank statements, then I\'ll total every cleaning line for the period you ask. (Live number-crunching switches on once Claude is connected.)';
+  if(/profit|net|made|earn|revenue|income/i.test(q))return 'For profit I\'ll need: payouts in + your costs (cleaning, management %, supplies, strata/mortgage). Upload those with 📎 and I\'ll net it out per property. (Activates with Claude connected.)';
+  return 'Ask me e.g. “cleaning charges this year” or “profit on 134 Thompsons”, and import statements with 📎 — I\'ll guide you on exactly what to upload. Real analysis turns on when Claude is connected (Settings → API key).';
+}
+function sendAbMsg(){
+  var inp=document.getElementById('abInput'),q=(inp.value||'').trim();
+  if(!q&&!AB_FILES.length)return;
+  var c=loadAbChat();c.push({role:'user',text:q||'(files attached)',files:AB_FILES.slice()});
+  var reply=abAgentReply(q,AB_FILES.length);AB_FILES=[];renderAbFiles();inp.value='';
+  saveAbChat(c);renderAbChat();
+  setTimeout(function(){var cc=loadAbChat();cc.push({role:'ai',text:reply});saveAbChat(cc);renderAbChat();},480);
+}
+(function wireAb(){var fi=document.getElementById('abFile');if(fi)fi.addEventListener('change',function(){[].slice.call(fi.files).forEach(function(f){AB_FILES.push(f.name);});fi.value='';renderAbFiles();});})();
+renderAirbnbTasks();renderAbChat();
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
