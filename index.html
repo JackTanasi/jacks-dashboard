@@ -635,6 +635,24 @@ body{font-family:var(--font);color:var(--text);background:
 .rx-sched-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);}
 .rx-sched-row b{font-weight:800;}
 .rx-sched-days{color:var(--muted);text-align:right;}
+.rx-ico{font-size:18px;flex-shrink:0;line-height:1;}
+.rx-dose{cursor:text;outline:none;}
+.rx-dose:focus{box-shadow:0 0 0 2px var(--green3);}
+.rx-dose:empty:before{content:'＋';color:var(--muted);font-weight:800;}
+.train-week{display:flex;gap:6px;margin-top:14px;}
+.tw-day{flex:1;text-align:center;border:1px solid var(--border);border-radius:11px;padding:9px 3px;background:var(--card);min-width:0;}
+.tw-day.active{border-color:rgba(205,168,132,0.6);}
+.tw-day.now{background:var(--green);border-color:var(--green);}
+.tw-d{display:block;font-size:11px;font-weight:800;color:var(--muted);}
+.tw-day.now .tw-d{color:rgba(255,255,255,0.75);}
+.tw-p{display:block;font-size:10px;font-weight:700;margin-top:3px;line-height:1.15;}
+.tw-day.now .tw-p{color:#fff;}
+#historyBody{max-height:340px;overflow-y:auto;}
+.hist-row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--border);font-size:12.5px;}
+.hist-row.today{font-weight:800;}
+.hist-date{flex:1;min-width:0;}
+.hist-rx,.hist-tr{color:var(--muted);font-weight:600;white-space:nowrap;flex-shrink:0;}
+.hist-rx.ok,.hist-tr.ok{color:var(--green3);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -651,7 +669,7 @@ body{font-family:var(--font);color:var(--text);background:
   };
   const db = getFirestore(initializeApp(firebaseConfig));
   const DOC_REF = doc(db, 'users', 'jack_redesign');   // separate doc so it won't clash with the classic app's data
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -1343,6 +1361,12 @@ body{font-family:var(--font);color:var(--text);background:
       <div id="protoBody"></div>
       <details class="rx-full"><summary>Full weekly schedule</summary><div id="protoSchedule"></div></details>
     </div>
+    <div class="card col2" id="trainCard"><div class="card-head"><div class="card-title">🏋️ Training · <span id="trainDay">—</span></div><span class="card-sub" id="trainStatus"></span></div>
+      <div id="trainBody"></div>
+    </div>
+    <div class="card col2" id="historyCard"><div class="card-head"><div class="card-title">📅 History</div><span class="card-sub">last 30 days</span></div>
+      <div id="historyBody"></div>
+    </div>
     <div class="card col4"><div class="card-head"><div class="card-title">This Week's Consistency</div><span class="card-sub">habits/day</span></div>
       <div class="bars"><div class="b"><div class="bar" style="height:90px"></div><span>M</span></div><div class="b peak"><div class="bar" style="height:120px"></div><span>T</span></div><div class="b"><div class="bar" style="height:78px"></div><span>W</span></div><div class="b"><div class="bar" style="height:96px"></div><span>T</span></div><div class="b"><div class="bar" style="height:66px"></div><span>F</span></div><div class="b"><div class="bar" style="height:48px"></div><span>S</span></div><div class="b"><div class="bar" style="height:72px"></div><span>S</span></div></div>
     </div>
@@ -1677,7 +1701,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderProtocol)renderProtocol();}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
@@ -1846,36 +1870,69 @@ document.addEventListener('click',function(e){
   if((t==='Send'||t==='Ask')&&(b.closest('#page-trading')||b.closest('#page-financial'))){toast('AI chat activates when Claude is connected (Settings → API key)');return;}
 });
 // ── Health protocol (peptides + supplements) ──
+// icon = what it does · dose in syringe units (.10/.20 etc), tap a dose to edit it
 var HEALTH_RX=[
-  {id:'im8',  name:'IM8 drink', dose:'',      when:'am', days:[0,1,2,3,4,5,6]},
-  {id:'reta', name:'Reta',      dose:'20ml',  when:'am', days:[1,3,5]},
-  {id:'motsc',name:'Motsc',     dose:'',      when:'am', days:[1,2,3,4,5]},
-  {id:'semaz',name:'Semaz',     dose:'10ml',  when:'am', days:[1,2,3,4,5]},
-  {id:'glow', name:'Glow',      dose:'0.10',  when:'pm', days:[1,2,3,4,5]},
-  {id:'mt2',  name:'MT2',       dose:'0.5ml', when:'pm', days:[1,3,5]}
+  {id:'im8',  name:'IM8 drink', icon:'🥤', dose:'',    when:'am', days:[0,1,2,3,4,5,6]},
+  {id:'reta', name:'Reta',      icon:'🔥', dose:'.20', when:'am', days:[1,3,5]},
+  {id:'motsc',name:'Motsc',     icon:'⚡', dose:'',    when:'am', days:[1,2,3,4,5]},
+  {id:'semaz',name:'Semaz',     icon:'🍽️', dose:'.10', when:'am', days:[1,2,3,4,5]},
+  {id:'glow', name:'Glow',      icon:'✨', dose:'.10', when:'pm', days:[1,2,3,4,5]},
+  {id:'mt2',  name:'MT2',       icon:'☀️', dose:'.50', when:'pm', days:[1,3,5]}
 ];
+var TRAIN={1:'Chest',2:'Back',4:'Shoulders',5:'Arms'}; // Mon Tue Thu Fri — spaced, Wed/Sat/Sun rest
 var DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var DAY_ABBR=['Su','M','T','W','Th','F','Sa'];
 function healthToday(){return new Date().toISOString().slice(0,10);}
 function loadHealth(){try{return JSON.parse(localStorage.getItem('jd_health')||'{}');}catch(e){return {};}}
-function saveHealth(o){var keys=Object.keys(o).sort();while(keys.length>21)delete o[keys.shift()];localStorage.setItem('jd_health',JSON.stringify(o));}
-function toggleRx(id){var all=loadHealth(),day=healthToday(),d=all[day]||{};d[id]=!d[id];all[day]=d;saveHealth(all);renderProtocol();}
+function saveHealth(o){var keys=Object.keys(o).sort();while(keys.length>30)delete o[keys.shift()];localStorage.setItem('jd_health',JSON.stringify(o));}
+function loadRxCfg(){try{return JSON.parse(localStorage.getItem('jd_rx_cfg')||'{}');}catch(e){return {};}}
+function rxDose(r){var c=loadRxCfg();return (c.doses&&c.doses[r.id]!=null)?c.doses[r.id]:r.dose;}
+function setDose(id,val){var c=loadRxCfg();c.doses=c.doses||{};c.doses[id]=(val||'').trim();localStorage.setItem('jd_rx_cfg',JSON.stringify(c));}
+function dueRx(dow){return HEALTH_RX.filter(function(r){return r.days.indexOf(dow)>=0;});}
+function toggleRx(id){var all=loadHealth(),day=healthToday(),d=all[day]||{};d[id]=!d[id];all[day]=d;saveHealth(all);renderProtocol();renderHistory();}
+function toggleTrain(){var all=loadHealth(),day=healthToday(),d=all[day]||{};d.train=!d.train;all[day]=d;saveHealth(all);renderTraining();renderHistory();}
 function renderProtocol(){
   var body=document.getElementById('protoBody');if(!body)return;
   var dow=new Date().getDay();
   var dl=document.getElementById('protoDay');if(dl)dl.textContent=DAY_NAMES[dow];
   var checks=(loadHealth()[healthToday()])||{};
-  var due=HEALTH_RX.filter(function(r){return r.days.indexOf(dow)>=0;});
+  var due=dueRx(dow);
   function sec(when,label,icon){var items=due.filter(function(r){return r.when===when;});if(!items.length)return '';
-    return '<div class="rx-sec"><div class="rx-sec-h">'+icon+' '+label+'</div>'+items.map(function(r){var on=checks[r.id]?' on':'';
-      return '<div class="rx-row'+on+'" onclick="toggleRx(\''+r.id+'\')"><div class="rx-check"></div><span class="rx-name">'+r.name+'</span>'+(r.dose?'<span class="rx-dose">'+r.dose+'</span>':'')+'</div>';}).join('')+'</div>';}
+    return '<div class="rx-sec"><div class="rx-sec-h">'+icon+' '+label+'</div>'+items.map(function(r){var on=checks[r.id]?' on':'';var dz=rxDose(r);
+      return '<div class="rx-row'+on+'" onclick="toggleRx(\''+r.id+'\')"><div class="rx-check"></div><span class="rx-ico">'+r.icon+'</span><span class="rx-name">'+r.name+'</span><span class="rx-dose" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onblur="setDose(\''+r.id+'\',this.textContent)">'+dz+'</span></div>';}).join('')+'</div>';}
   body.innerHTML=(sec('am','Morning','🌅')+sec('pm','Night','🌙'))||'<div class="rx-empty">Nothing scheduled today — rest day 💪</div>';
   var total=due.length,done=due.filter(function(r){return checks[r.id];}).length;
   var pg=document.getElementById('protoProgress');if(pg)pg.textContent=done+'/'+total+(total&&done===total?' ✓ all done':' done');
   var sch=document.getElementById('protoSchedule');
-  if(sch)sch.innerHTML=HEALTH_RX.map(function(r){return '<div class="rx-sched-row"><b>'+r.name+(r.dose?' · '+r.dose:'')+'</b><span class="rx-sched-days">'+r.days.map(function(d){return DAY_ABBR[d];}).join(' ')+' · '+(r.when==='am'?'AM':'PM')+'</span></div>';}).join('');
+  if(sch)sch.innerHTML=HEALTH_RX.map(function(r){return '<div class="rx-sched-row"><b>'+r.icon+' '+r.name+(rxDose(r)?' · '+rxDose(r):'')+'</b><span class="rx-sched-days">'+r.days.map(function(d){return DAY_ABBR[d];}).join(' ')+' · '+(r.when==='am'?'AM':'PM')+'</span></div>';}).join('');
 }
-renderProtocol();
+function renderTraining(){
+  var body=document.getElementById('trainBody');if(!body)return;
+  var dow=new Date().getDay(),part=TRAIN[dow];
+  var checks=(loadHealth()[healthToday()])||{};
+  document.getElementById('trainDay').textContent=part?part:'Rest day';
+  var st=document.getElementById('trainStatus');if(st)st.textContent=part?(checks.train?'✓ done':'tap to log'):'recover 💤';
+  var today=part?('<div class="rx-row'+(checks.train?' on':'')+'" onclick="toggleTrain()"><div class="rx-check"></div><span class="rx-ico">🏋️</span><span class="rx-name">'+part+' day</span></div>'):'<div class="rx-empty" style="padding:13px;">Rest &amp; recover today 💤</div>';
+  var week='<div class="train-week">'+[1,2,3,4,5,6,0].map(function(d){var p=TRAIN[d];return '<div class="tw-day'+(d===dow?' now':'')+(p?' active':'')+'"><span class="tw-d">'+DAY_ABBR[d]+'</span><span class="tw-p">'+(p||'·')+'</span></div>';}).join('')+'</div>';
+  body.innerHTML=today+week;
+}
+function renderHistory(){
+  var body=document.getElementById('historyBody');if(!body)return;
+  var all=loadHealth(),rows=[];
+  for(var i=0;i<30;i++){
+    var dt=new Date();dt.setDate(dt.getDate()-i);
+    var key=dt.toISOString().slice(0,10),dow=dt.getDay();
+    var due=dueRx(dow),checks=all[key]||{};
+    var done=due.filter(function(r){return checks[r.id];}).length;
+    var part=TRAIN[dow],full=(due.length&&done===due.length);
+    var label=DAY_ABBR[dow]+' '+dt.getDate()+'/'+(dt.getMonth()+1)+(i===0?' · today':'');
+    var trTxt=part?(checks.train?'✓ '+part:'✗ '+part):'rest';
+    rows.push('<div class="hist-row'+(i===0?' today':'')+'"><span class="hist-date">'+label+'</span><span class="hist-rx'+(full?' ok':'')+'">💉 '+done+'/'+due.length+'</span><span class="hist-tr'+(part&&checks.train?' ok':'')+'">🏋️ '+trTxt+'</span></div>');
+  }
+  body.innerHTML=rows.join('');
+}
+function renderHealthAll(){renderProtocol();renderTraining();renderHistory();}
+renderHealthAll();
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
