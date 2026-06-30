@@ -653,6 +653,13 @@ body{font-family:var(--font);color:var(--text);background:
 .hist-date{flex:1;min-width:0;}
 .hist-rx,.hist-tr{color:var(--muted);font-weight:600;white-space:nowrap;flex-shrink:0;}
 .hist-rx.ok,.hist-tr.ok{color:var(--green3);}
+.ts-edit{cursor:pointer;border-bottom:1px dashed var(--border);padding-bottom:1px;}
+.ts-edit:after{content:' ▾';font-size:10px;color:var(--muted);}
+.ts-brandpick,.ts-urgpick{display:none;flex-wrap:wrap;gap:7px;padding:10px 0 4px;}
+.ts-brandpick.open,.ts-urgpick.open{display:flex;}
+.ts-brandpick .brand-logo{width:38px;height:38px;}
+.ts-brandpick .brand-logo.sel{outline:2px solid var(--green3);outline-offset:1px;}
+.ts-urgpick .urg.sel{background:var(--green);color:#fff;border-color:var(--green);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -1415,8 +1422,10 @@ body{font-family:var(--font);color:var(--text);background:
       <button class="ts-sp" data-s="Completed">Completed</button>
     </div>
     <div class="ts-section-label">Details</div>
-    <div class="ts-field"><span class="ts-k">Business</span><span class="ts-v" id="tsBrand">—</span></div>
-    <div class="ts-field"><span class="ts-k">Urgency</span><span class="ts-v" id="tsUrg">—</span></div>
+    <div class="ts-field"><span class="ts-k">Business</span><span class="ts-v ts-edit" id="tsBrand" onclick="toggleBrandPick()">—</span></div>
+    <div class="ts-brandpick" id="tsBrandPick"></div>
+    <div class="ts-field"><span class="ts-k">Urgency</span><span class="ts-v ts-edit" id="tsUrg" onclick="toggleUrgPick()">—</span></div>
+    <div class="ts-urgpick" id="tsUrgPick"></div>
     <div class="ts-field"><span class="ts-k">Due date</span><span class="ts-v"><input type="date" class="ts-due-input" id="tsDue" onchange="setTaskDue(this.value)"/></span></div>
     <div class="ts-field"><span class="ts-k">Next step</span><span class="ts-v editable" contenteditable="true" spellcheck="false" id="tsNext" onblur="setTaskNext(this.textContent)">—</span></div>
     <div class="ts-section-label">Notes</div>
@@ -1747,6 +1756,8 @@ function openTaskDetail(id){
   var sp=document.getElementById('tsStatus');sp.textContent=slabel;sp.className='status-pill '+(t.status==='done'?'sp-bank':t.status==='underway'?'sp-deck':'sp-urgent');
   document.querySelectorAll('.ts-sp').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-s')===slabel);});
   var box=document.getElementById('tsAiResult');if(box){box.classList.remove('show');box.innerHTML='';}
+  var bp=document.getElementById('tsBrandPick');if(bp)bp.classList.remove('open');
+  var up=document.getElementById('tsUrgPick');if(up)up.classList.remove('open');
   document.getElementById('taskSheet').classList.add('show');
   document.getElementById('taskBackdrop').classList.add('show');
 }
@@ -1756,6 +1767,10 @@ function setTaskNext(v){var t=findTask(CURRENT_TASK_ID);if(t){t.next=(v||'').tri
 function setTaskNotes(v){var t=findTask(CURRENT_TASK_ID);if(t){t.notes=(v||'').trim();saveTasks();}}
 function markCurrentDone(){var t=findTask(CURRENT_TASK_ID);if(t){t.status='done';saveTasks();renderTasks();}closeTask();}
 function deleteCurrentTask(){if(CURRENT_TASK_ID)removeTask(CURRENT_TASK_ID);closeTask();}
+function toggleBrandPick(){var p=document.getElementById('tsBrandPick');if(p.classList.contains('open')){p.classList.remove('open');return;}var t=findTask(CURRENT_TASK_ID),cur=t?t.brand:'per';p.innerHTML=SG_BRANDS.map(function(x){var on=x[0]===cur?' sel':'';return x[1]==='GTE'?'<button class="brand-logo gte'+on+'" onclick="setTaskBrand(\'gte\')"><span>GTE</span></button>':'<button class="brand-logo'+on+'" onclick="setTaskBrand(\''+x[0]+'\')"><img src="'+x[1]+'"/></button>';}).join('');p.classList.add('open');}
+function setTaskBrand(b){var t=findTask(CURRENT_TASK_ID);if(!t)return;t.brand=b;saveTasks();renderTasks();document.getElementById('tsBrand').textContent=BRAND_NAMES[b]||'—';var lg=document.getElementById('tsLogo');lg.innerHTML=logoH(b);lg.className='ts-logo'+(b==='gte'?' gte':'');document.getElementById('tsBrandPick').classList.remove('open');toast('Moved to '+(BRAND_NAMES[b]||b));}
+function toggleUrgPick(){var p=document.getElementById('tsUrgPick');if(p.classList.contains('open')){p.classList.remove('open');return;}var t=findTask(CURRENT_TASK_ID),cur=t?t.urg:'urgent';var U=[['urgent','🔴 Urgent'],['deck','🟠 On Deck'],['bank','🟢 In the Bank']];p.innerHTML=U.map(function(u){return '<button class="urg'+(u[0]===cur?' sel':'')+'" onclick="setTaskUrg(\''+u[0]+'\')">'+u[1]+'</button>';}).join('');p.classList.add('open');}
+function setTaskUrg(u){var t=findTask(CURRENT_TASK_ID);if(!t)return;t.urg=u;saveTasks();renderTasks();document.getElementById('tsUrg').textContent=(u==='deck'?'🟠 ':u==='bank'?'🟢 ':'🔴 ')+(URG[u]?URG[u][1]:'Urgent');document.getElementById('tsUrgPick').classList.remove('open');}
 // ── Screenshot → Task ──
 var SHOTS=[];
 function downscaleImage(file,max,q){return new Promise(function(res){var fr=new FileReader();fr.onload=function(){var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>max||h>max){if(w>=h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);try{res(c.toDataURL('image/jpeg',q));}catch(e){res(fr.result);}};img.onerror=function(){res(fr.result);};img.src=fr.result;};fr.onerror=function(){res('');};fr.readAsDataURL(file);});}
