@@ -96,7 +96,8 @@ body{font-family:var(--font);color:var(--text);background:
 .hero.gte::before{background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);}
 .hero.gte .card-title{color:rgba(255,255,255,0.82);}
 .addtask-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.urg-pills{display:flex;gap:7px;}
+.urg-pills{display:flex;gap:7px;flex-wrap:wrap;}
+#amRepeat .urg,#tsRepeatPick .urg{font-size:13px;padding:8px 14px;}
 .urg{font-size:12px;font-weight:700;padding:8px 13px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,0.5);cursor:pointer;font-family:inherit;color:var(--text2);}
 .urg.sel{background:var(--green);color:var(--copper-l);border-color:var(--green);}
 
@@ -574,6 +575,7 @@ body{font-family:var(--font);color:var(--text);background:
 .task-open{display:flex;align-items:center;gap:13px;flex:1;min-width:0;cursor:pointer;}
 .task-row .m .due{color:var(--green3);font-weight:700;}
 .task-row .m .due.over{color:#c0492f;}
+.rep-badge{color:var(--copper-d);font-weight:700;text-transform:capitalize;}
 .ts-due-input{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px;color:var(--text);background:var(--card);}
 #tsNext:empty:before{content:'Add a next step…';color:var(--muted);}
 #tsNotes:empty:before{content:'Add notes…';color:var(--muted);}
@@ -1471,6 +1473,8 @@ body{font-family:var(--font);color:var(--text);background:
   <div class="ts-section-label" style="margin:14px 0 0;">Urgency</div>
   <div class="urg-pills" id="amUrg"><button class="urg sel" data-u="urgent">🔴 Urgent</button><button class="urg" data-u="deck">🟠 On Deck</button><button class="urg" data-u="bank">🟢 In the Bank</button></div>
   <div class="add-date-row"><span class="add-date-lbl">📅 Due date</span><input type="date" id="amDate" class="add-date"/></div>
+  <div class="ts-section-label" style="margin:14px 0 0;">🔁 Repeat</div>
+  <div class="urg-pills" id="amRepeat"><button class="urg sel" data-r="none">None</button><button class="urg" data-r="daily">Daily</button><button class="urg" data-r="weekly">Weekly</button><button class="urg" data-r="monthly">Monthly</button><button class="urg" data-r="yearly">Yearly</button></div>
   <button class="btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="addModalSubmit()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add Task</button>
 </div>
 <div class="sheet-backdrop" id="taskBackdrop" onclick="closeTask()"></div>
@@ -1493,6 +1497,8 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="ts-field"><span class="ts-k">Urgency</span><span class="ts-v ts-edit" id="tsUrg" onclick="toggleUrgPick()">—</span></div>
     <div class="ts-urgpick" id="tsUrgPick"></div>
     <div class="ts-field"><span class="ts-k">Due date</span><span class="ts-v"><input type="date" class="ts-due-input" id="tsDue" onchange="setTaskDue(this.value)"/></span></div>
+    <div class="ts-field"><span class="ts-k">Repeat</span><span class="ts-v ts-edit" id="tsRepeat" onclick="toggleRepeatPick()">None</span></div>
+    <div class="ts-urgpick" id="tsRepeatPick"></div>
     <div class="ts-field"><span class="ts-k">Next step</span><span class="ts-v editable" contenteditable="true" spellcheck="false" id="tsNext" onblur="setTaskNext(this.textContent)">—</span></div>
     <div class="ts-section-label">Notes</div>
     <div class="ts-notes editable" contenteditable="true" spellcheck="false" id="tsNotes" onblur="setTaskNotes(this.textContent)"></div>
@@ -1767,8 +1773,9 @@ var URG={urgent:['sp-urgent','Urgent'],deck:['sp-deck','On Deck'],bank:['sp-bank
 var COLS=[['pending','Pending'],['underway','Underway'],['ooc','Out of My Control'],['done','Completed']];
 function findTask(id){for(var i=0;i<TASKS.length;i++)if(TASKS[i].id===id)return TASKS[i];return null;}
 function setTxt(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function fmtDue(iso){if(!iso)return null;var d=new Date(iso+'T00:00:00');if(isNaN(d))return null;var today=new Date();today.setHours(0,0,0,0);var diff=Math.round((d-today)/86400000);var lbl=d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});if(diff===0)lbl='Today';else if(diff===1)lbl='Tomorrow';else if(diff===-1)lbl='Yesterday';return {txt:lbl,over:diff<0};}
-function rowMeta(t){var d=fmtDue(t.due);if(d)return '<span class="due'+(d.over?' over':'')+'">📅 '+d.txt+'</span>'+(t.next?' · Next: '+esc(t.next):'');return t.next?'Next: '+esc(t.next):'&nbsp;';}
+function rowMeta(t){var d=fmtDue(t.due);var rep=(t.repeat&&t.repeat!=='none')?' <span class="rep-badge">🔁 '+t.repeat+'</span>':'';if(d)return '<span class="due'+(d.over?' over':'')+'">📅 '+d.txt+'</span>'+(t.next?' · Next: '+esc(t.next):'')+rep;var base=t.next?'Next: '+esc(t.next):'';return (base+rep)||'&nbsp;';}
 function renderTasks(){
   var ht=document.getElementById('homeTasks');
   if(ht){
@@ -1794,7 +1801,9 @@ function renderTasks(){
   setTxt('heroDone',done);setTxt('heroDoneCount',done);
   if(window.renderAirbnbTasks)renderAirbnbTasks();
 }
-function toggleTaskDone(id){var t=findTask(id);if(t){t.status=t.status==='done'?'pending':'done';saveTasks();renderTasks();}}
+function nextDue(due,rep){var d=due?new Date(due+'T00:00:00'):new Date();if(isNaN(d))d=new Date();if(rep==='daily')d.setDate(d.getDate()+1);else if(rep==='weekly')d.setDate(d.getDate()+7);else if(rep==='monthly')d.setMonth(d.getMonth()+1);else if(rep==='yearly')d.setFullYear(d.getFullYear()+1);return ymd(d);}
+function completeOrRoll(t){if(t.repeat&&t.repeat!=='none'){t.due=nextDue(t.due,t.repeat);t.status='pending';return '🔁 Next '+t.repeat+' set for '+t.due;}t.status='done';return null;}
+function toggleTaskDone(id){var t=findTask(id);if(!t)return;if(t.status==='done'){t.status='pending';}else{var m=completeOrRoll(t);if(m&&window.toast)toast(m);}saveTasks();renderTasks();}
 function editTask(id,v){var t=findTask(id);if(t){t.text=(v||'').trim()||t.text;saveTasks();}}
 function removeTask(id){TASKS=TASKS.filter(function(t){return t.id!==id;});try{localStorage.removeItem('jd_img_'+id);}catch(e){}saveTasks();renderTasks();}
 function addTaskFromForm(){
@@ -1861,6 +1870,7 @@ function openTaskDetail(id){
   var u=URG[t.urg]||URG.urgent;
   document.getElementById('tsUrg').textContent=(t.urg==='deck'?'🟠 ':t.urg==='bank'?'🟢 ':'🔴 ')+u[1];
   document.getElementById('tsDue').value=t.due||'';
+  var rpv=(t.repeat&&t.repeat!=='none')?t.repeat:'none';document.getElementById('tsRepeat').textContent=rpv==='none'?'None':rpv.charAt(0).toUpperCase()+rpv.slice(1);
   document.getElementById('tsNext').textContent=t.next||'';
   document.getElementById('tsNotes').textContent=t.notes||'';
   var shot=document.getElementById('tsShot');var simg=t.img?localStorage.getItem('jd_img_'+t.id):'';shot.innerHTML=simg?'<img src="'+simg+'" alt="screenshot"/>':'';
@@ -1870,6 +1880,7 @@ function openTaskDetail(id){
   var box=document.getElementById('tsAiResult');if(box){box.classList.remove('show');box.innerHTML='';}
   var bp=document.getElementById('tsBrandPick');if(bp)bp.classList.remove('open');
   var up=document.getElementById('tsUrgPick');if(up)up.classList.remove('open');
+  var rpk=document.getElementById('tsRepeatPick');if(rpk)rpk.classList.remove('open');
   document.getElementById('taskSheet').classList.add('show');
   document.getElementById('taskBackdrop').classList.add('show');
 }
@@ -1877,12 +1888,14 @@ function setTaskTitle(v){var t=findTask(CURRENT_TASK_ID);if(t){t.text=(v||'').tr
 function setTaskDue(v){var t=findTask(CURRENT_TASK_ID);if(t){t.due=v||'';saveTasks();renderTasks();}}
 function setTaskNext(v){var t=findTask(CURRENT_TASK_ID);if(t){t.next=(v||'').trim();saveTasks();renderTasks();}}
 function setTaskNotes(v){var t=findTask(CURRENT_TASK_ID);if(t){t.notes=(v||'').trim();saveTasks();}}
-function markCurrentDone(){var t=findTask(CURRENT_TASK_ID);if(t){t.status='done';saveTasks();renderTasks();}closeTask();}
+function markCurrentDone(){var t=findTask(CURRENT_TASK_ID);if(t){var m=completeOrRoll(t);if(m)toast(m);saveTasks();renderTasks();}closeTask();}
 function deleteCurrentTask(){if(CURRENT_TASK_ID)removeTask(CURRENT_TASK_ID);closeTask();}
 function toggleBrandPick(){var p=document.getElementById('tsBrandPick');if(p.classList.contains('open')){p.classList.remove('open');return;}var t=findTask(CURRENT_TASK_ID),cur=t?t.brand:'per';p.innerHTML=SG_BRANDS.map(function(x){var on=x[0]===cur?' sel':'';return x[1]==='GTE'?'<button class="brand-logo gte'+on+'" onclick="setTaskBrand(\'gte\')"><span>GTE</span></button>':'<button class="brand-logo'+on+'" onclick="setTaskBrand(\''+x[0]+'\')"><img src="'+x[1]+'"/></button>';}).join('');p.classList.add('open');}
 function setTaskBrand(b){var t=findTask(CURRENT_TASK_ID);if(!t)return;t.brand=b;saveTasks();renderTasks();document.getElementById('tsBrand').textContent=BRAND_NAMES[b]||'—';var lg=document.getElementById('tsLogo');lg.innerHTML=logoH(b);lg.className='ts-logo'+(b==='gte'?' gte':'');document.getElementById('tsBrandPick').classList.remove('open');toast('Moved to '+(BRAND_NAMES[b]||b));}
 function toggleUrgPick(){var p=document.getElementById('tsUrgPick');if(p.classList.contains('open')){p.classList.remove('open');return;}var t=findTask(CURRENT_TASK_ID),cur=t?t.urg:'urgent';var U=[['urgent','🔴 Urgent'],['deck','🟠 On Deck'],['bank','🟢 In the Bank']];p.innerHTML=U.map(function(u){return '<button class="urg'+(u[0]===cur?' sel':'')+'" onclick="setTaskUrg(\''+u[0]+'\')">'+u[1]+'</button>';}).join('');p.classList.add('open');}
 function setTaskUrg(u){var t=findTask(CURRENT_TASK_ID);if(!t)return;t.urg=u;saveTasks();renderTasks();document.getElementById('tsUrg').textContent=(u==='deck'?'🟠 ':u==='bank'?'🟢 ':'🔴 ')+(URG[u]?URG[u][1]:'Urgent');document.getElementById('tsUrgPick').classList.remove('open');}
+function toggleRepeatPick(){var p=document.getElementById('tsRepeatPick');if(p.classList.contains('open')){p.classList.remove('open');return;}var t=findTask(CURRENT_TASK_ID),cur=(t&&t.repeat)?t.repeat:'none';var R=[['none','None'],['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly']];p.innerHTML=R.map(function(r){return '<button class="urg'+(r[0]===cur?' sel':'')+'" onclick="setTaskRepeat(\''+r[0]+'\')">'+r[1]+'</button>';}).join('');p.classList.add('open');}
+function setTaskRepeat(r){var t=findTask(CURRENT_TASK_ID);if(!t)return;t.repeat=r;saveTasks();renderTasks();document.getElementById('tsRepeat').textContent=r==='none'?'None':r.charAt(0).toUpperCase()+r.slice(1);document.getElementById('tsRepeatPick').classList.remove('open');}
 // ── Screenshot → Task ──
 var SHOTS=[];
 function downscaleImage(file,max,q){return new Promise(function(res){var fr=new FileReader();fr.onload=function(){var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>max||h>max){if(w>=h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);try{res(c.toDataURL('image/jpeg',q));}catch(e){res(fr.result);}};img.onerror=function(){res(fr.result);};img.src=fr.result;};fr.onerror=function(){res('');};fr.readAsDataURL(file);});}
@@ -1953,6 +1966,7 @@ function openAddTask(brand){
   b.innerHTML=SG_BRANDS.map(function(x){var on=(x[0]===(brand||'per'))?' sel':'';return x[1]==='GTE'?'<button class="brand-logo gte'+on+'" data-b="gte"><span>GTE</span></button>':'<button class="brand-logo'+on+'" data-b="'+x[0]+'"><img src="'+x[1]+'"/></button>';}).join('');
   b.querySelectorAll('.brand-logo').forEach(function(btn){btn.onclick=function(){b.querySelectorAll('.brand-logo').forEach(function(z){z.classList.remove('sel');});btn.classList.add('sel');};});
   var u=document.getElementById('amUrg');u.querySelectorAll('.urg').forEach(function(btn){btn.onclick=function(){u.querySelectorAll('.urg').forEach(function(z){z.classList.remove('sel');});btn.classList.add('sel');};});
+  var rp=document.getElementById('amRepeat');rp.querySelectorAll('.urg').forEach(function(btn){btn.onclick=function(){rp.querySelectorAll('.urg').forEach(function(z){z.classList.remove('sel');});btn.classList.add('sel');};});rp.querySelectorAll('.urg').forEach(function(z){z.classList.toggle('sel',z.getAttribute('data-r')==='none');});
   document.getElementById('amText').value='';document.getElementById('amDate').value='';
   document.getElementById('addModal').classList.add('show');document.getElementById('addBackdrop').classList.add('show');
   setTimeout(function(){var i=document.getElementById('amText');if(i)i.focus();},260);
@@ -1963,8 +1977,9 @@ function addModalSubmit(){
   var bs=document.querySelector('#amBrands .brand-logo.sel');var brand=bs?bs.getAttribute('data-b'):'per';
   var us=document.querySelector('#amUrg .urg.sel');var urg=us?us.getAttribute('data-u'):'urgent';
   var due=document.getElementById('amDate').value||'';
-  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:'',due:due,notes:'',img:false});
-  saveTasks();renderTasks();closeAddTask();toast('✓ Task added');
+  var rs=document.querySelector('#amRepeat .urg.sel');var repeat=rs?rs.getAttribute('data-r'):'none';
+  TASKS.push({id:'t'+Date.now(),text:text,brand:brand,urg:urg,status:'pending',next:'',due:due,notes:'',img:false,repeat:repeat});
+  saveTasks();renderTasks();closeAddTask();toast(repeat==='none'?'✓ Task added':'✓ Task added · 🔁 '+repeat);
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAddTask();});
 // ── Catch-all: no button is a silent dead-click ──
@@ -1982,7 +1997,7 @@ document.addEventListener('click',function(e){
   if(b.classList.contains('add-line')){var blk=b.parentElement,row=document.createElement('div');row.className='exp-row';row.innerHTML='<span class="editable" contenteditable="true" spellcheck="false">New item</span><div class="bal-input">$<input class="exp-input" type="number" value="0" oninput="if(window.calcFin)calcFin()"/></div><button class="row-x">×</button>';blk.insertBefore(row,b);var sp=row.querySelector('span');if(sp){var rg=document.createRange();rg.selectNodeContents(sp);var se=window.getSelection();se.removeAllRanges();se.addRange(rg);}return;}
   if(b.classList.contains('collapse-btn')){var card=b.closest('.card');if(card){card.classList.toggle('collapsed');b.textContent=card.classList.contains('collapsed')?'▸':'▾';}return;}
   // prayer toggle (local)
-  if(/Mark as prayed/i.test(t)){var k='jd_prayed_'+new Date().toISOString().slice(0,10);if(localStorage.getItem(k)){localStorage.removeItem(k);b.textContent='🙏 Mark as prayed';toast('Unmarked');}else{localStorage.setItem(k,'1');b.textContent='✓ Prayed today';toast('🙏 Marked as prayed');}return;}
+  if(/Mark as prayed/i.test(t)){var k='jd_prayed_'+ymd(new Date());if(localStorage.getItem(k)){localStorage.removeItem(k);b.textContent='🙏 Mark as prayed';toast('Unmarked');}else{localStorage.setItem(k,'1');b.textContent='✓ Prayed today';toast('🙏 Marked as prayed');}return;}
   // settings: save Anthropic key (local)
   if(/Save Key/i.test(t)){var inp=b.parentElement.querySelector('input');var v=inp?(inp.value||'').trim():'';if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);if(inp)inp.value='';toast('✓ Key saved on this device');return;}
   // integration-dependent → honest feedback, never silent
@@ -2009,7 +2024,7 @@ var HEALTH_RX=[
 var TRAIN={1:'Chest',2:'Back',4:'Shoulders',5:'Arms'}; // Mon Tue Thu Fri — spaced, Wed/Sat/Sun rest
 var DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var DAY_ABBR=['Su','M','T','W','Th','F','Sa'];
-function healthToday(){return new Date().toISOString().slice(0,10);}
+function healthToday(){return ymd(new Date());}
 function loadHealth(){try{return JSON.parse(localStorage.getItem('jd_health')||'{}');}catch(e){return {};}}
 function saveHealth(o){var keys=Object.keys(o).sort();while(keys.length>30)delete o[keys.shift()];localStorage.setItem('jd_health',JSON.stringify(o));}
 function loadRxCfg(){try{return JSON.parse(localStorage.getItem('jd_rx_cfg')||'{}');}catch(e){return {};}}
@@ -2048,7 +2063,7 @@ function renderHistory(){
   var all=loadHealth(),rows=[];
   for(var i=0;i<30;i++){
     var dt=new Date();dt.setDate(dt.getDate()-i);
-    var key=dt.toISOString().slice(0,10),dow=dt.getDay();
+    var key=ymd(dt),dow=dt.getDay();
     var due=dueRx(dow),checks=all[key]||{};
     var done=due.filter(function(r){return checks[r.id];}).length;
     var part=TRAIN[dow],full=(due.length&&done===due.length);
@@ -2136,7 +2151,7 @@ function completeWithAI(){
     var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     box.innerHTML='<div class="ts-ai-done">✓ <b>Done by AI.</b> '+aiResultFor(title)+'<div class="ts-ai-sub">Saved under this task · '+t+' · need more? open the Task Manager.</div></div>';
     var sp=document.getElementById('tsStatus');if(sp){sp.textContent='Completed';sp.className='status-pill sp-bank';}
-    var ct=findTask(CURRENT_TASK_ID);if(ct){ct.status='done';saveTasks();renderTasks();}
+    var ct=findTask(CURRENT_TASK_ID);if(ct){completeOrRoll(ct);saveTasks();renderTasks();}
   },1400);
 }
 function openTaskManager(){
