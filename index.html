@@ -660,6 +660,11 @@ body{font-family:var(--font);color:var(--text);background:
 .ts-brandpick .brand-logo{width:38px;height:38px;}
 .ts-brandpick .brand-logo.sel{outline:2px solid var(--green3);outline-offset:1px;}
 .ts-urgpick .urg.sel{background:var(--green);color:#fff;border-color:var(--green);}
+.restore-bar{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-160%);background:#8a3220;color:#fff;padding:11px 14px;border-radius:14px;display:flex;align-items:center;gap:10px;z-index:430;box-shadow:0 16px 44px -12px rgba(0,0,0,.55);max-width:94vw;font-size:12.5px;font-weight:600;transition:transform .3s;flex-wrap:wrap;justify-content:center;}
+.restore-bar.show{transform:translateX(-50%) translateY(0);}
+.restore-bar button{border:none;background:rgba(255,255,255,0.22);color:#fff;font:inherit;font-weight:800;padding:7px 13px;border-radius:9px;cursor:pointer;flex-shrink:0;}
+.restore-bar button:hover{background:rgba(255,255,255,0.32);}
+.restore-bar .rb-x{background:transparent;opacity:.85;font-weight:600;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -1401,6 +1406,7 @@ body{font-family:var(--font);color:var(--text);background:
 </div>
 
 <!-- Task detail slide-over -->
+<div id="restoreBar" class="restore-bar"><span id="restoreMsg"></span><button onclick="restoreTasks()">Restore</button><button class="rb-x" onclick="hideRestoreBar()">Dismiss</button></div>
 <div class="sheet-backdrop" id="addBackdrop" onclick="closeAddTask()" style="z-index:319;"></div>
 <div class="add-modal" id="addModal" role="dialog" aria-label="Add task">
   <div class="add-modal-head"><div class="add-modal-title">＋ New Task</div><button class="ts-close" onclick="closeAddTask()" aria-label="Close">×</button></div>
@@ -1656,7 +1662,27 @@ function jload(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v||d;}c
 function jsave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 var TASKS=jload('jd_tasks',[]), GOALS=jload('jd_goals',[]);
-function saveTasks(){jsave('jd_tasks',TASKS);} function saveGoals(){jsave('jd_goals',GOALS);}
+function saveTasks(){jsave('jd_tasks',TASKS);backupTasks();} function saveGoals(){jsave('jd_goals',GOALS);}
+// ── Safety net: rolling LOCAL backups of tasks (never synced, so a cloud wipe can't erase them) ──
+function backupTasks(){try{
+  if(!TASKS||!TASKS.length)return;                       // never snapshot an empty list
+  var bak=JSON.parse(localStorage.getItem('jd_tasks_bak')||'[]');
+  var cur=JSON.stringify(TASKS);
+  if(bak.length&&bak[bak.length-1].t===cur)return;       // unchanged since last snapshot
+  bak.push({ts:Date.now(),n:TASKS.length,t:cur});
+  while(bak.length>20)bak.shift();
+  localStorage.setItem('jd_tasks_bak',JSON.stringify(bak)); // jd_tasks_bak is NOT in SYNC_KEYS → stays on-device
+}catch(e){}}
+function latestBackup(){try{var b=JSON.parse(localStorage.getItem('jd_tasks_bak')||'[]');return b[b.length-1]||null;}catch(e){return null;}}
+function restoreTasks(){var b=latestBackup();if(!b)return;TASKS=JSON.parse(b.t);saveTasks();renderTasks();hideRestoreBar();toast('✓ Restored '+TASKS.length+' task'+(TASKS.length>1?'s':''));}
+function maybeOfferRestore(){
+  if(TASKS&&TASKS.length){hideRestoreBar();return;}       // have tasks → nothing to recover
+  var b=latestBackup();if(!b||!b.n){hideRestoreBar();return;}
+  var bar=document.getElementById('restoreBar');if(!bar)return;
+  document.getElementById('restoreMsg').textContent='⚠️ Your tasks look empty — a backup of '+b.n+' task'+(b.n>1?'s':'')+' from '+new Date(b.ts).toLocaleString()+' is saved on this device.';
+  bar.classList.add('show');
+}
+function hideRestoreBar(){var bar=document.getElementById('restoreBar');if(bar)bar.classList.remove('show');}
 var BRAND_LOGO={sp:'logo-sp.jpg',be:'logo-be.jpg',ns:'logo-ns.jpg',rhi:'logo-rhi.jpg',fw:'logo-fw.jpg',tr:'logo-tr.jpg',ab:'logo-ab.jpg',per:'logo-ti.svg'};
 var TITLE2BRAND={'Silver Platter':'sp','Bronze Era':'be','Nest':'ns','Regan Hillyer':'rhi','Frenchie Wear':'fw','Trading':'tr','Airbnb':'ab','GTE Electrical (Dad)':'gte','GTE Electrical':'gte','Personal':'per'};
 function logoH(b){return b==='gte'?'<span>GTE</span>':'<img src="'+(BRAND_LOGO[b]||'logo-ti.svg')+'"/>';}
@@ -1715,7 +1741,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
@@ -1953,6 +1979,8 @@ function renderHistory(){
 }
 function renderHealthAll(){renderProtocol();renderTraining();renderHistory();}
 renderHealthAll();
+// after the cloud has had a moment to load, check whether tasks need recovering
+setTimeout(function(){if(window.maybeOfferRestore)maybeOfferRestore();},4000);
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
