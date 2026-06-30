@@ -665,6 +665,13 @@ body{font-family:var(--font);color:var(--text);background:
 .restore-bar button{border:none;background:rgba(255,255,255,0.22);color:#fff;font:inherit;font-weight:800;padding:7px 13px;border-radius:9px;cursor:pointer;flex-shrink:0;}
 .restore-bar button:hover{background:rgba(255,255,255,0.32);}
 .restore-bar .rb-x{background:transparent;opacity:.85;font-weight:600;}
+.vault-tile{background-size:cover;background-position:center;}
+.vault-edit{display:flex;flex-direction:column;gap:7px;border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--card);}
+.ve-title,.ve-url{border:1px solid var(--border);border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;background:var(--card);color:var(--text);width:100%;}
+.ve-title{font-weight:700;}
+.ve-rm{align-self:flex-start;border:none;background:transparent;color:#c0492f;font:inherit;font-weight:700;cursor:pointer;font-size:12px;padding:2px 0;}
+.vault-add{border:2px dashed var(--border);border-radius:14px;background:transparent;color:var(--muted);font:inherit;font-weight:700;cursor:pointer;min-height:90px;}
+.vault-add:hover{border-color:var(--green3);color:var(--green3);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -686,7 +693,7 @@ body{font-family:var(--font);color:var(--text);background:
   const DOC_ID = IS_LIVE ? 'jack_redesign' : 'jack_redesign_sandbox';
   const DOC_REF = doc(db, 'users', DOC_ID);
   console.log(IS_LIVE ? 'Firebase: LIVE doc (jack_redesign)' : 'Firebase: SANDBOX doc (jack_redesign_sandbox) — live data is safe');
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -1354,15 +1361,8 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── LEARNING ───────── -->
   <section class="page" id="page-learning">
    <div class="grid">
-    <div class="card col4"><div class="card-head"><div class="card-title">🎬 Learning Vault</div><button class="btn-primary">＋ Edit URLs</button></div>
-      <div class="vault-grid">
-        <div class="vault-tile"><div class="pl"></div><div class="cap">How great leaders inspire action — Simon Sinek</div></div>
-        <div class="vault-tile"><div class="pl"></div><div class="cap">The psychology of selling</div></div>
-        <div class="vault-tile"><div class="pl"></div><div class="cap">Build a brand people love</div></div>
-        <div class="vault-tile"><div class="pl"></div><div class="cap">Trading discipline 101</div></div>
-        <div class="vault-tile"><div class="pl"></div><div class="cap">Morning routines of operators</div></div>
-        <div class="vault-tile"><div class="pl"></div><div class="cap">Negotiate like a pro</div></div>
-      </div>
+    <div class="card col4"><div class="card-head"><div class="card-title">🎬 Learning Vault</div><button class="btn-primary" id="vaultEditBtn" onclick="toggleVaultEdit()">＋ Edit URLs</button></div>
+      <div class="vault-grid" id="vaultGrid"></div>
     </div>
    </div>
   </section>
@@ -1741,7 +1741,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();if(typeof VAULT!=='undefined'&&!vaultEditing){VAULT=jload('jd_vault',VAULT_DEFAULT.slice());renderVault();}}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
@@ -1981,6 +1981,26 @@ function renderHealthAll(){renderProtocol();renderTraining();renderHistory();}
 renderHealthAll();
 // after the cloud has had a moment to load, check whether tasks need recovering
 setTimeout(function(){if(window.maybeOfferRestore)maybeOfferRestore();},4000);
+// ── Learning Vault (editable video links) ──
+var VAULT_DEFAULT=[{title:'How great leaders inspire action — Simon Sinek',url:''},{title:'The psychology of selling',url:''},{title:'Build a brand people love',url:''},{title:'Trading discipline 101',url:''},{title:'Morning routines of operators',url:''},{title:'Negotiate like a pro',url:''}];
+var VAULT=jload('jd_vault',VAULT_DEFAULT.slice());
+var vaultEditing=false;
+function saveVault(){jsave('jd_vault',VAULT);}
+function ytId(u){var m=(u||'').match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{6,})/);return m?m[1]:'';}
+function vaultThumb(u){var id=ytId(u);return id?'https://img.youtube.com/vi/'+id+'/hqdefault.jpg':'';}
+function renderVault(){
+  var g=document.getElementById('vaultGrid');if(!g)return;
+  if(vaultEditing){
+    g.innerHTML=VAULT.map(function(v,i){return '<div class="vault-edit"><input class="ve-title" value="'+esc(v.title).replace(/"/g,'&quot;')+'" placeholder="Title" oninput="VAULT['+i+'].title=this.value"/><input class="ve-url" value="'+esc(v.url).replace(/"/g,'&quot;')+'" placeholder="Paste link (YouTube, etc.)" oninput="VAULT['+i+'].url=this.value"/><button class="ve-rm" onclick="removeVault('+i+')">✕ Remove</button></div>';}).join('')+'<button class="vault-add" onclick="addVault()">＋ Add a video</button>';
+  }else{
+    g.innerHTML=VAULT.length?VAULT.map(function(v,i){var th=vaultThumb(v.url);var st=th?' style="background-image:url(\''+th+'\')"':'';return '<div class="vault-tile" onclick="openVault('+i+')"'+st+'><div class="pl"></div><div class="cap">'+esc(v.title)+'</div></div>';}).join(''):'<div class="rx-empty">No videos yet — tap “Edit URLs” to add some.</div>';
+  }
+}
+function openVault(i){var v=VAULT[i];if(v&&v.url){window.open(v.url,'_blank','noopener');}else{toast('No link yet — tap “Edit URLs” to add one');}}
+function toggleVaultEdit(){vaultEditing=!vaultEditing;var b=document.getElementById('vaultEditBtn');if(b)b.textContent=vaultEditing?'✓ Done':'＋ Edit URLs';if(!vaultEditing){saveVault();toast('✓ Vault saved');}renderVault();}
+function addVault(){VAULT.push({title:'New video',url:''});renderVault();}
+function removeVault(i){VAULT.splice(i,1);renderVault();}
+renderVault();
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
