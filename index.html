@@ -681,6 +681,11 @@ body{font-family:var(--font);color:var(--text);background:
 .gte-fallback{font-size:11.5px;color:var(--muted);margin-top:9px;text-align:center;}
 .gte-fallback a{color:var(--green3);font-weight:700;}
 @media(max-width:680px){.gte-frame{height:calc(100vh - 150px);}}
+.task-sort{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap;}
+.sort-pill{border:1px solid var(--border);background:var(--card);border-radius:999px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;}
+.sort-pill.sel{background:var(--green);color:#fff;border-color:var(--green);}
+.show-more{width:100%;border:none;background:transparent;color:var(--green3);font:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:11px;margin-top:4px;border-top:1px solid var(--border);}
+.show-more:hover{background:rgba(3,54,47,0.04);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -910,7 +915,12 @@ body{font-family:var(--font);color:var(--text);background:
     </div>
 
     <div class="card col2">
-      <div class="card-head"><div class="card-title">Today's Tasks</div><span class="card-sub">0 active</span></div>
+      <div class="card-head"><div class="card-title">All Tasks</div><span class="card-sub">0 active</span></div>
+      <div class="task-sort" id="taskSort">
+        <button class="sort-pill sel" data-s="manual" onclick="setHomeSort('manual',event)">Manual</button>
+        <button class="sort-pill" data-s="urg" onclick="setHomeSort('urg',event)">🔴 Important</button>
+        <button class="sort-pill" data-s="due" onclick="setHomeSort('due',event)">📅 Due date</button>
+      </div>
       <div id="homeTasks"></div>
     </div>
 
@@ -1555,11 +1565,11 @@ document.addEventListener('click',function(e){
   var ib=e.target.closest('.inbox');
   if(ib&&!e.target.closest('.mail-add'))ib.classList.toggle('expanded');
   var nav=e.target.closest('.nav-card');
-  if(nav&&!e.target.closest('input,textarea,button,a,.task-check,.goal-row .gc,.habit .hc,.brand-logo,.urg,.mail-add,.goal-add,.mic-btn,.drag-handle'))showPage(nav.getAttribute('data-goto'));
+  if(nav&&!e.target.closest('input,textarea,button,a,select,.task-open,.task-check,.sort-pill,.show-more,.goal-row .gc,.habit .hc,.brand-logo,.urg,.mail-add,.goal-add,.mic-btn,.drag-handle'))showPage(nav.getAttribute('data-goto'));
 });
 // Wire Home overview cards → their full tabs
 (function wireHomeNav(){
-  var map={"This Week":"tasks","Today's Tasks":"tasks","Task Breakdown":"tasks","Weekly Activity":"tasks","Today's Focus":"tasks","2026 Goals":"goals","Daily Habits":"health","Daily Quote":"motivation"};
+  var map={"This Week":"tasks","All Tasks":"tasks","Task Breakdown":"tasks","Weekly Activity":"tasks","Today's Focus":"tasks","2026 Goals":"goals","Daily Habits":"health","Daily Quote":"motivation"};
   document.querySelectorAll('#page-home .grid > .card').forEach(function(c){
     var el=c.querySelector('.card-title')||c.querySelector('.card-sub');
     var txt=el?el.textContent:'';
@@ -1571,7 +1581,7 @@ document.addEventListener('click',function(e){
 (function homeWidgets(){
   var grid=document.querySelector('#page-home .grid');
   if(!grid)return;
-  var map={'This Week':'hero','Add a Task':'addtask',"Today's Tasks":'tasks','2026 Goals':'goals','Net Cash':'cash','Task Breakdown':'breakdown','Weekly Activity':'activity','Daily Habits':'habits',"Today's Focus":'focus','Daily Quote':'quote','Today':'today'};
+  var map={'This Week':'hero','Add a Task':'addtask','All Tasks':'tasks','2026 Goals':'goals','Net Cash':'cash','Task Breakdown':'breakdown','Weekly Activity':'activity','Daily Habits':'habits',"Today's Focus":'focus','Daily Quote':'quote','Today':'today'};
   [].forEach.call(grid.children,function(c){
     if(!c.classList||!c.classList.contains('card'))return;
     var el=c.querySelector('.card-title')||c.querySelector('.card-sub');
@@ -1677,6 +1687,10 @@ function jload(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v||d;}c
 function jsave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 var TASKS=jload('jd_tasks',[]), GOALS=jload('jd_goals',[]);
+var homeSort=localStorage.getItem('jd_home_sort')||'manual', homeExpanded=false;
+function sortActiveTasks(arr){var a=arr.slice();if(homeSort==='urg'){var rk={urgent:0,deck:1,bank:2};a.sort(function(x,y){return (rk[x.urg]==null?9:rk[x.urg])-(rk[y.urg]==null?9:rk[y.urg]);});}else if(homeSort==='due'){a.sort(function(x,y){var dx=x.due||'9999-99-99',dy=y.due||'9999-99-99';return dx<dy?-1:dx>dy?1:0;});}return a;}
+function setHomeSort(s,ev){if(ev)ev.stopPropagation();homeSort=s;try{localStorage.setItem('jd_home_sort',s);}catch(e){}renderTasks();}
+function toggleHomeExpand(ev){if(ev)ev.stopPropagation();homeExpanded=!homeExpanded;renderTasks();}
 function saveTasks(){jsave('jd_tasks',TASKS);backupTasks();} function saveGoals(){jsave('jd_goals',GOALS);}
 // ── Safety net: rolling LOCAL backups of tasks (never synced, so a cloud wipe can't erase them) ──
 function backupTasks(){try{
@@ -1711,11 +1725,15 @@ function rowMeta(t){var d=fmtDue(t.due);if(d)return '<span class="due'+(d.over?'
 function renderTasks(){
   var ht=document.getElementById('homeTasks');
   if(ht){
-    var active=TASKS.filter(function(t){return t.status!=='done';});
-    ht.innerHTML=active.length?active.map(function(t){var u=URG[t.urg]||URG.urgent;
-      return '<div class="task-row" data-id="'+t.id+'"><div class="task-check'+(t.status==='done'?' done':'')+'" onclick="event.stopPropagation();toggleTaskDone(\''+t.id+'\')" title="Mark done"></div><div class="task-open" onclick="openTaskDetail(\''+t.id+'\')"><div class="task-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="task-main"><div class="t">'+esc(t.text)+'</div><div class="m">'+rowMeta(t)+'</div></div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span><button class="li-x" onclick="event.stopPropagation();removeTask(\''+t.id+'\')" title="Delete">×</button></div>';
-    }).join(''):'<div class="task-empty">No tasks yet — add one with the form on the left.</div>';
+    var active=sortActiveTasks(TASKS.filter(function(t){return t.status!=='done';}));
+    var CAP=5, shown=homeExpanded?active:active.slice(0,CAP);
+    if(active.length){
+      ht.innerHTML=shown.map(function(t){var u=URG[t.urg]||URG.urgent;
+        return '<div class="task-row" data-id="'+t.id+'"><div class="task-check'+(t.status==='done'?' done':'')+'" onclick="event.stopPropagation();toggleTaskDone(\''+t.id+'\')" title="Mark done"></div><div class="task-open" onclick="openTaskDetail(\''+t.id+'\')"><div class="task-logo'+logoC(t.brand)+'">'+logoH(t.brand)+'</div><div class="task-main"><div class="t">'+esc(t.text)+'</div><div class="m">'+rowMeta(t)+'</div></div></div><span class="status-pill '+u[0]+'">'+u[1]+'</span><button class="li-x" onclick="event.stopPropagation();removeTask(\''+t.id+'\')" title="Delete">×</button></div>';
+      }).join('')+(active.length>CAP?'<button class="show-more" onclick="toggleHomeExpand(event)">'+(homeExpanded?'▲ Show less':('▼ Show all '+active.length+' tasks'))+'</button>':'');
+    }else{ht.innerHTML='<div class="task-empty">No tasks yet — add one with the form on the left.</div>';}
     var sub=ht.closest('.card').querySelector('.card-sub');if(sub)sub.textContent=active.length+' active';
+    document.querySelectorAll('#taskSort .sort-pill').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-s')===homeSort);});
   }
   var kb=document.getElementById('kanban');
   if(kb)kb.innerHTML=COLS.map(function(c){var items=TASKS.filter(function(t){return t.status===c[0];});
