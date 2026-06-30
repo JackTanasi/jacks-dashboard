@@ -617,6 +617,24 @@ body{font-family:var(--font);color:var(--text);background:
 .add-modal-title{font-size:19px;font-weight:800;letter-spacing:-.02em;}
 .add-modal .add-input{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;background:var(--card);color:var(--text);}
 .add-modal .brand-pick{margin-top:6px;}
+/* Health protocol */
+.rx-sec{margin-top:14px;}
+.rx-sec-h{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
+.rx-row{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:13px;border:1px solid var(--border);margin-bottom:9px;cursor:pointer;transition:all .15s;background:var(--card);}
+.rx-row:hover{border-color:var(--green3);}
+.rx-row.on{background:rgba(3,54,47,0.07);}
+.rx-check{width:25px;height:25px;border-radius:8px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.rx-row.on .rx-check{background:var(--green);border-color:var(--green);}
+.rx-row.on .rx-check:after{content:'✓';color:#fff;font-size:14px;font-weight:800;line-height:1;}
+.rx-name{font-weight:700;flex:1;min-width:0;}
+.rx-row.on .rx-name{text-decoration:line-through;color:var(--muted);}
+.rx-dose{font-size:12px;font-weight:700;color:var(--green3);background:rgba(3,54,47,0.09);padding:3px 10px;border-radius:8px;flex-shrink:0;}
+.rx-empty{padding:18px;text-align:center;color:var(--muted);font-weight:600;}
+.rx-full{margin-top:14px;border-top:1px solid var(--border);padding-top:10px;}
+.rx-full summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);}
+.rx-sched-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);}
+.rx-sched-row b{font-weight:800;}
+.rx-sched-days{color:var(--muted);text-align:right;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -633,7 +651,7 @@ body{font-family:var(--font);color:var(--text);background:
   };
   const db = getFirestore(initializeApp(firebaseConfig));
   const DOC_REF = doc(db, 'users', 'jack_redesign');   // separate doc so it won't clash with the classic app's data
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -1321,6 +1339,10 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="card col2"><div class="card-head"><div class="card-title">Daily Habits</div><span class="card-sub">tap to tick</span></div>
       <div class="habit"><div class="hc on"></div><span class="he">🙏</span><span class="ht">Pray</span></div><div class="habit"><div class="hc on"></div><span class="he">💪</span><span class="ht">Gym</span></div><div class="habit"><div class="hc on"></div><span class="he">📞</span><span class="ht">Call Family</span></div><div class="habit"><div class="hc"></div><span class="he">💊</span><span class="ht">Creatine</span></div><div class="habit"><div class="hc on"></div><span class="he">🎬</span><span class="ht">Motivational Video</span></div><div class="habit"><div class="hc"></div><span class="he">📈</span><span class="ht">Test a Trade</span></div>
     </div>
+    <div class="card col4" id="protocolCard"><div class="card-head"><div class="card-title">💉 Today's Protocol · <span id="protoDay">—</span></div><span class="card-sub" id="protoProgress">0/0</span></div>
+      <div id="protoBody"></div>
+      <details class="rx-full"><summary>Full weekly schedule</summary><div id="protoSchedule"></div></details>
+    </div>
     <div class="card col4"><div class="card-head"><div class="card-title">This Week's Consistency</div><span class="card-sub">habits/day</span></div>
       <div class="bars"><div class="b"><div class="bar" style="height:90px"></div><span>M</span></div><div class="b peak"><div class="bar" style="height:120px"></div><span>T</span></div><div class="b"><div class="bar" style="height:78px"></div><span>W</span></div><div class="b"><div class="bar" style="height:96px"></div><span>T</span></div><div class="b"><div class="bar" style="height:66px"></div><span>F</span></div><div class="b"><div class="bar" style="height:48px"></div><span>S</span></div><div class="b"><div class="bar" style="height:72px"></div><span>S</span></div></div>
     </div>
@@ -1655,7 +1677,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderProtocol)renderProtocol();}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
@@ -1823,6 +1845,37 @@ document.addEventListener('click',function(e){
   if(/Edit URLs/i.test(t)){toast('Learning-vault links will be editable soon');return;}
   if((t==='Send'||t==='Ask')&&(b.closest('#page-trading')||b.closest('#page-financial'))){toast('AI chat activates when Claude is connected (Settings → API key)');return;}
 });
+// ── Health protocol (peptides + supplements) ──
+var HEALTH_RX=[
+  {id:'im8',  name:'IM8 drink', dose:'',      when:'am', days:[0,1,2,3,4,5,6]},
+  {id:'reta', name:'Reta',      dose:'20ml',  when:'am', days:[1,3,5]},
+  {id:'motsc',name:'Motsc',     dose:'',      when:'am', days:[1,2,3,4,5]},
+  {id:'semaz',name:'Semaz',     dose:'10ml',  when:'am', days:[1,2,3,4,5]},
+  {id:'glow', name:'Glow',      dose:'0.10',  when:'pm', days:[1,2,3,4,5]},
+  {id:'mt2',  name:'MT2',       dose:'0.5ml', when:'pm', days:[1,3,5]}
+];
+var DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var DAY_ABBR=['Su','M','T','W','Th','F','Sa'];
+function healthToday(){return new Date().toISOString().slice(0,10);}
+function loadHealth(){try{return JSON.parse(localStorage.getItem('jd_health')||'{}');}catch(e){return {};}}
+function saveHealth(o){var keys=Object.keys(o).sort();while(keys.length>21)delete o[keys.shift()];localStorage.setItem('jd_health',JSON.stringify(o));}
+function toggleRx(id){var all=loadHealth(),day=healthToday(),d=all[day]||{};d[id]=!d[id];all[day]=d;saveHealth(all);renderProtocol();}
+function renderProtocol(){
+  var body=document.getElementById('protoBody');if(!body)return;
+  var dow=new Date().getDay();
+  var dl=document.getElementById('protoDay');if(dl)dl.textContent=DAY_NAMES[dow];
+  var checks=(loadHealth()[healthToday()])||{};
+  var due=HEALTH_RX.filter(function(r){return r.days.indexOf(dow)>=0;});
+  function sec(when,label,icon){var items=due.filter(function(r){return r.when===when;});if(!items.length)return '';
+    return '<div class="rx-sec"><div class="rx-sec-h">'+icon+' '+label+'</div>'+items.map(function(r){var on=checks[r.id]?' on':'';
+      return '<div class="rx-row'+on+'" onclick="toggleRx(\''+r.id+'\')"><div class="rx-check"></div><span class="rx-name">'+r.name+'</span>'+(r.dose?'<span class="rx-dose">'+r.dose+'</span>':'')+'</div>';}).join('')+'</div>';}
+  body.innerHTML=(sec('am','Morning','🌅')+sec('pm','Night','🌙'))||'<div class="rx-empty">Nothing scheduled today — rest day 💪</div>';
+  var total=due.length,done=due.filter(function(r){return checks[r.id];}).length;
+  var pg=document.getElementById('protoProgress');if(pg)pg.textContent=done+'/'+total+(total&&done===total?' ✓ all done':' done');
+  var sch=document.getElementById('protoSchedule');
+  if(sch)sch.innerHTML=HEALTH_RX.map(function(r){return '<div class="rx-sched-row"><b>'+r.name+(r.dose?' · '+r.dose:'')+'</b><span class="rx-sched-days">'+r.days.map(function(d){return DAY_ABBR[d];}).join(' ')+' · '+(r.when==='am'?'AM':'PM')+'</span></div>';}).join('');
+}
+renderProtocol();
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
