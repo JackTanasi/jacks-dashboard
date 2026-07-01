@@ -1495,7 +1495,7 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── SETTINGS ───────── -->
   <section class="page" id="page-settings">
    <div class="grid">
-    <div class="card col2"><div class="card-head"><div class="card-title">🔑 Anthropic API Key</div></div><input class="set-input" type="password" placeholder="sk-ant-api03-…"/><button class="btn-primary">Save Key</button><div style="font-size:11px;color:var(--text3);margin-top:8px;">Powers AI summaries, recommendations & screenshot auto-fill.</div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🔑 Anthropic API Key</div><span class="card-sub" id="apiKeyStatus">not set</span></div><input class="set-input" id="apiKeyInput" type="password" placeholder="sk-ant-api03-…"/><div style="display:flex;gap:8px;margin-top:2px;"><button class="btn-primary" onclick="saveApiKey()">Save Key</button><button class="ts-btn" id="apiKeyClear" onclick="clearApiKey()" style="display:none;">Remove</button></div><div style="font-size:11px;color:var(--text3);margin-top:8px;">Powers AI summaries, recommendations &amp; screenshot auto-fill. Stored only on this device (not synced, for security).</div></div>
     <div class="card col2"><div class="card-head"><div class="card-title">💳 AI Credit Usage</div></div>
       <div class="usage-row"><span>Email summaries</span><span>$0.42</span></div><div class="usage-row"><span>Recommendations</span><span>$0.18</span></div><div class="usage-row"><span>Screenshot fill</span><span>$0.09</span></div><div class="usage-row"><span>Total</span><span>$0.69</span></div>
     </div>
@@ -1611,6 +1611,7 @@ function showPage(p){
   if(p==='gte')loadGteFrame();
   if(p==='trading'&&window.loadTradingWidgets)loadTradingWidgets();
   if(p==='news'&&window.loadNews)loadNews();
+  if(p==='settings'&&window.refreshApiKeyStatus)refreshApiKeyStatus();
   window.scrollTo(0,0);
 }
 function loadGteFrame(){var f=document.getElementById('gteFrame');if(f&&!f.src&&f.dataset.src)f.src=f.dataset.src;}
@@ -2199,6 +2200,18 @@ function sendAbMsg(){
 }
 (function wireAb(){var fi=document.getElementById('abFile');if(fi)fi.addEventListener('change',function(){[].slice.call(fi.files).forEach(function(f){AB_FILES.push(f.name);});fi.value='';renderAbFiles();});})();
 renderAirbnbTasks();renderAbChat();
+// ── Anthropic API key (stored on-device; clearly shows saved state) ──
+function apiKeyMask(k){return k?('sk-ant-…'+k.slice(-4)):'';}
+function refreshApiKeyStatus(){
+  var k=localStorage.getItem('jd_anthropic_key');
+  var s=document.getElementById('apiKeyStatus'),inp=document.getElementById('apiKeyInput'),clr=document.getElementById('apiKeyClear');
+  if(!s)return;
+  if(k){s.textContent='✓ saved ('+apiKeyMask(k)+')';s.style.color='var(--green3)';if(inp){inp.value='';inp.placeholder=apiKeyMask(k)+' · saved — paste a new one to replace';}if(clr)clr.style.display='';}
+  else{s.textContent='not set';s.style.color='';if(inp)inp.placeholder='sk-ant-api03-…';if(clr)clr.style.display='none';}
+}
+function saveApiKey(){var inp=document.getElementById('apiKeyInput');var v=(inp?inp.value:'').trim();if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);refreshApiKeyStatus();toast('✓ Key saved on this device');}
+function clearApiKey(){localStorage.removeItem('jd_anthropic_key');refreshApiKeyStatus();toast('Key removed');}
+refreshApiKeyStatus();
 // ── News tab ──
 var NEWS_TOPICS=['property','shares','business','government'];
 var NEWS_DATA={},newsLoaded=false;
