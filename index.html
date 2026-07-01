@@ -721,6 +721,19 @@ body{font-family:var(--font);color:var(--text);background:
 .metal{flex:1;min-width:180px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card);}
 .metal-label{font-size:12px;font-weight:800;color:var(--text2);padding:10px 12px 2px;}
 .metal .tv-embed{min-height:170px;}
+/* News tab */
+.news-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;}
+.news-title{font-size:19px;font-weight:800;letter-spacing:-.02em;}
+.news-sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.news-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.news-list{display:flex;flex-direction:column;min-height:60px;}
+.news-item{display:block;text-decoration:none;padding:11px 2px;border-bottom:1px solid var(--border);}
+.news-item:last-child{border-bottom:none;}
+.news-hl{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.35;}
+.news-item:hover .news-hl{color:var(--green3);}
+.news-meta{font-size:11px;color:var(--muted);margin-top:3px;}
+.news-empty{padding:14px 2px;color:var(--muted);font-size:12.5px;}
+.news-note{font-size:12px;color:var(--muted);line-height:1.5;text-align:center;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -887,6 +900,7 @@ body{font-family:var(--font);color:var(--text);background:
   <button class="rail-btn" data-page="calendar" title="Calendar"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></button>
   <button class="rail-btn" data-page="motivation" title="Motivation"><svg viewBox="0 0 24 24"><path d="M12 3c1 4-2 5-2 8a4 4 0 008 0c0-2-1-3-1-3 2 1 3 4 3 6a7 7 0 11-14 0c0-5 4-6 6-11z"/></svg></button>
   <button class="rail-btn" data-page="emails" title="Emails"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></button>
+  <button class="rail-btn" data-page="news" title="News"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H5a2 2 0 01-2-2V6a1 1 0 011-1zM17 8h3v9a2 2 0 01-2 2M7 8h6M7 12h6M7 16h4"/></svg></button>
   <button class="rail-btn" data-page="trading" title="Trading"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 7-8M16 4h4v4"/></svg></button>
   <button class="rail-btn" data-page="airbnb" title="Airbnb"><svg viewBox="0 0 24 24"><path d="M2 17h20M4 17v-4a3 3 0 013-3h10a3 3 0 013 3v4M7 10V8a2 2 0 012-2h6a2 2 0 012 2v2"/></svg></button>
   <button class="rail-btn" data-page="gte" title="GTE — Dad's business"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></button>
@@ -1146,6 +1160,20 @@ body{font-family:var(--font);color:var(--text);background:
   </section>
 
   <!-- ───────── TRADING ───────── -->
+  <section class="page" id="page-news">
+   <div class="grid">
+    <div class="card col4 news-head">
+      <div><div class="news-title">📰 News that matters to you</div><div class="news-sub" id="newsUpdated">Australia · tap Refresh for the latest</div></div>
+      <div class="news-actions"><button class="ts-btn" onclick="loadNews(true)">⟳ Refresh</button><button class="btn-primary" onclick="weeklySummary()">📄 This week's summary (PDF)</button></div>
+    </div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🏠 Property · AUS</div></div><div class="news-list" id="news-property"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">📈 Shares · Gold/Silver/Oil/ASX</div></div><div class="news-list" id="news-shares"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">💼 Business · AUS</div></div><div class="news-list" id="news-business"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🏛️ Government · AUS</div></div><div class="news-list" id="news-government"></div></div>
+    <div class="card col4"><div class="news-note">Headlines are pulled live from Australian news, tailored to your topics. The headline is your quick summary — tap any to read the full story. <b>AI-rewritten one-line summaries + an auto-emailed Sunday PDF</b> switch on when Claude is connected (Settings → API key).</div></div>
+   </div>
+  </section>
+
   <section class="page" id="page-trading">
    <div class="grid">
     <div class="card col4 trade-actions">
@@ -1574,7 +1602,7 @@ body{font-family:var(--font);color:var(--text);background:
 <!-- live -->
 
 <script>
-var titles={home:'Home',tasks:'Tasks',goals:'Goals',calendar:'Calendar',motivation:'Motivation',emails:'Emails',trading:'Trading',airbnb:'Airbnb',gte:'GTE Electrical',financial:'Financial',documents:'Important Documents',learning:'Learning Vault',health:'Health',settings:'Settings'};
+var titles={home:'Home',tasks:'Tasks',goals:'Goals',calendar:'Calendar',motivation:'Motivation',emails:'Emails',news:'News',trading:'Trading',airbnb:'Airbnb',gte:'GTE Electrical',financial:'Financial',documents:'Important Documents',learning:'Learning Vault',health:'Health',settings:'Settings'};
 function showPage(p){
   document.querySelectorAll('.page').forEach(function(s){s.classList.toggle('active',s.id==='page-'+p);});
   document.querySelectorAll('.rail-btn').forEach(function(b){b.classList.toggle('active',b.dataset.page===p);});
@@ -1582,6 +1610,7 @@ function showPage(p){
   if(p==='calendar'&&typeof renderCalendar==='function')renderCalendar();
   if(p==='gte')loadGteFrame();
   if(p==='trading'&&window.loadTradingWidgets)loadTradingWidgets();
+  if(p==='news'&&window.loadNews)loadNews();
   window.scrollTo(0,0);
 }
 function loadGteFrame(){var f=document.getElementById('gteFrame');if(f&&!f.src&&f.dataset.src)f.src=f.dataset.src;}
@@ -2170,6 +2199,29 @@ function sendAbMsg(){
 }
 (function wireAb(){var fi=document.getElementById('abFile');if(fi)fi.addEventListener('change',function(){[].slice.call(fi.files).forEach(function(f){AB_FILES.push(f.name);});fi.value='';renderAbFiles();});})();
 renderAirbnbTasks();renderAbChat();
+// ── News tab ──
+var NEWS_TOPICS=['property','shares','business','government'];
+var NEWS_DATA={},newsLoaded=false;
+function newsTimeAgo(d){var t=new Date(d);if(isNaN(t))return '';var s=(Date.now()-t.getTime())/1000;if(s<3600)return Math.max(1,Math.round(s/60))+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}
+function renderNewsList(topic){var el=document.getElementById('news-'+topic);if(!el)return;var items=NEWS_DATA[topic]||[];if(!items.length){el.innerHTML='<div class="news-empty">No headlines yet — tap ⟳ Refresh.</div>';return;}el.innerHTML=items.slice(0,6).map(function(n){return '<a class="news-item" href="'+n.link+'" target="_blank" rel="noopener"><div class="news-hl">'+esc(n.title)+'</div><div class="news-meta">'+esc(n.source||'')+(n.date?' · '+newsTimeAgo(n.date):'')+'</div></a>';}).join('');}
+function loadNews(force){
+  if(newsLoaded&&!force)return;newsLoaded=true;
+  var upd=document.getElementById('newsUpdated');if(upd)upd.textContent='Loading latest…';
+  NEWS_TOPICS.forEach(function(topic){
+    var el=document.getElementById('news-'+topic);if(el&&!(NEWS_DATA[topic]&&NEWS_DATA[topic].length))el.innerHTML='<div class="news-empty">Loading…</div>';
+    fetch('/api/news?topic='+topic).then(function(r){return r.json();}).then(function(d){NEWS_DATA[topic]=d.items||[];renderNewsList(topic);var u=document.getElementById('newsUpdated');if(u)u.textContent='Australia · updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}).catch(function(){var e2=document.getElementById('news-'+topic);if(e2)e2.innerHTML='<div class="news-empty">Couldn\'t load — tap ⟳ Refresh.</div>';});
+  });
+}
+function weeklySummary(){
+  var w=window.open('','_blank');if(!w){toast('Allow pop-ups to build the PDF');return;}
+  var labels={property:'🏠 Property (AUS)',shares:'📈 Shares · Gold / Silver / Oil / ASX',business:'💼 Business (AUS)',government:'🏛️ Government (AUS)'};
+  var today=new Date().toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var body='';
+  NEWS_TOPICS.forEach(function(topic){var items=NEWS_DATA[topic]||[];if(!items.length)return;body+='<h2>'+labels[topic]+'</h2><ul>'+items.slice(0,6).map(function(n){return '<li><b>'+esc(n.title)+'</b><br><span class="src">'+esc(n.source||'')+'</span></li>';}).join('')+'</ul>';});
+  if(!body)body='<p>No news loaded yet — go back to the News tab, tap ⟳ Refresh, then try again.</p>';
+  w.document.write('<html><head><title>Your Week in News</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#12261f;max-width:720px;margin:30px auto;padding:0 22px;}h1{color:#03362f;margin-bottom:2px;}h2{color:#03362f;border-bottom:2px solid #cda884;padding-bottom:5px;margin-top:26px;font-size:17px;}li{margin:9px 0;line-height:1.4;}.src{color:#6b7b74;font-size:12px;}.tag{color:#6b7b74;font-size:13px;margin-bottom:6px;}</style></head><body><h1>📰 Your Week in News</h1><div class="tag">'+today+' · Jack\'s OS · Australia</div>'+body+'<p class="src" style="margin-top:30px;">Tailored Australian headlines. Print → <b>Save as PDF</b> to keep it.</p></body></html>');
+  w.document.close();setTimeout(function(){try{w.focus();w.print();}catch(e){}},500);
+}
 function aiResultFor(t){
   if(/quote|invoice|supplier|compare/i.test(t))return 'Compared the 3 quotes, picked the best value, and drafted a reply to lock it in.';
   if(/email|campaign|sign-?off|approve|press/i.test(t))return 'Drafted the approval email, attached the proofs, and queued it for your send.';
