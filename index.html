@@ -1495,7 +1495,7 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── SETTINGS ───────── -->
   <section class="page" id="page-settings">
    <div class="grid">
-    <div class="card col2"><div class="card-head"><div class="card-title">🔑 Anthropic API Key</div><span class="card-sub" id="apiKeyStatus">not set</span></div><input class="set-input" id="apiKeyInput" type="password" placeholder="sk-ant-api03-…"/><div style="display:flex;gap:8px;margin-top:2px;"><button class="btn-primary" onclick="saveApiKey()">Save Key</button><button class="ts-btn" id="apiKeyClear" onclick="clearApiKey()" style="display:none;">Remove</button></div><div style="font-size:11px;color:var(--text3);margin-top:8px;">Powers AI summaries, recommendations &amp; screenshot auto-fill. Stored only on this device (not synced, for security).</div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🔑 Anthropic API Key</div><span class="card-sub" id="apiKeyStatus">not set</span></div><input class="set-input" id="apiKeyInput" type="password" placeholder="sk-ant-api03-…"/><div style="display:flex;gap:8px;margin-top:2px;"><button class="btn-primary" onclick="saveApiKey()">Save Key</button><button class="ts-btn" id="apiKeyClear" onclick="clearApiKey()" style="display:none;">Remove</button></div><div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Powers the Airbnb agent, Task Manager, screenshot auto-fill &amp; summaries.<br><b>Most secure (recommended):</b> in Render → your service → Environment, add <b>ANTHROPIC_API_KEY</b> = your key. Then it's server-side, safe, and works on every device — no need to paste it here.<br><b>Quick option:</b> paste it above (this device only).</div></div>
     <div class="card col2"><div class="card-head"><div class="card-title">💳 AI Credit Usage</div></div>
       <div class="usage-row"><span>Email summaries</span><span>$0.42</span></div><div class="usage-row"><span>Recommendations</span><span>$0.18</span></div><div class="usage-row"><span>Screenshot fill</span><span>$0.09</span></div><div class="usage-row"><span>Total</span><span>$0.69</span></div>
     </div>
@@ -2163,6 +2163,20 @@ function toggleVaultEdit(){vaultEditing=!vaultEditing;var b=document.getElementB
 function addVault(){VAULT.push({title:'New video',url:''});renderVault();}
 function removeVault(i){VAULT.splice(i,1);renderVault();}
 renderVault();
+// ── Claude (via the secure server proxy — key never lives in the page) ──
+function askClaude(messages,opts){opts=opts||{};
+  while(messages.length&&messages[0].role==='assistant')messages.shift();  // API needs a user first
+  var body={messages:messages,max_tokens:opts.max_tokens||1024};
+  if(opts.system)body.system=opts.system;if(opts.model)body.model=opts.model;
+  var k=localStorage.getItem('jd_anthropic_key');if(k)body.apiKey=k;         // on-device fallback
+  return fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).catch(function(){return {error:'network'};});
+}
+function readFileForClaude(file){return new Promise(function(res){var t=file.type||'',fr=new FileReader();
+  if(/^image\//.test(t)){fr.onload=function(){res({type:'image',source:{type:'base64',media_type:t,data:(''+fr.result).split(',')[1]}});};fr.readAsDataURL(file);}
+  else if(t==='application/pdf'){fr.onload=function(){res({type:'document',source:{type:'base64',media_type:'application/pdf',data:(''+fr.result).split(',')[1]}});};fr.readAsDataURL(file);}
+  else{fr.onload=function(){res({type:'text',text:'[File: '+file.name+']\n'+(''+fr.result).slice(0,120000)});};fr.readAsText(file);}
+});}
+function aiErrText(r){if(!r)return 'No response.';if(r.error==='not_configured')return 'Claude isn\'t connected yet — add your ANTHROPIC_API_KEY in Render (Settings → Environment), or paste your key in Settings. Then this works with real answers.';if(r.error==='network')return 'Network hiccup reaching the server — try again.';return 'Error from Claude'+(r.detail?': '+(''+r.detail).replace(/[{}\"]/g,'').slice(0,140):'')+'.';}
 // ── Airbnb tab: tasks widget + agent ──
 function renderAirbnbTasks(){
   var c=document.getElementById('airbnbTasks');if(!c)return;
@@ -2182,23 +2196,28 @@ function renderAbChat(){
   box.innerHTML=c.map(function(m){var f=(m.files&&m.files.length)?'<div class="ab-msg-files">'+m.files.map(function(n){return '<span>📎 '+esc(n)+'</span>';}).join('')+'</div>':'';return '<div class="ab-msg '+(m.role==='user'?'me':'ai')+'">'+esc(m.text).replace(/\n/g,'<br>')+f+'</div>';}).join('');
   box.scrollTop=box.scrollHeight;
 }
-function renderAbFiles(){var el=document.getElementById('abFiles');if(!el)return;el.innerHTML=AB_FILES.map(function(f,i){return '<span class="ab-chip">📎 '+esc(f)+' <button onclick="abRmFile('+i+')">×</button></span>';}).join('');}
+function renderAbFiles(){var el=document.getElementById('abFiles');if(!el)return;el.innerHTML=AB_FILES.map(function(f,i){return '<span class="ab-chip">📎 '+esc(f.name)+' <button onclick="abRmFile('+i+')">×</button></span>';}).join('');}
 function abRmFile(i){AB_FILES.splice(i,1);renderAbFiles();}
-function abAgentReply(q,n){
-  if(n>0)return 'Got '+n+' file'+(n>1?'s':'')+' 📎 — held and ready. To actually read '+(n>1?'them':'it')+' and answer “'+q+'”, connect Claude in Settings → API key. Then I\'ll pull the numbers straight from your statements.';
-  if(/clean/i.test(q))return 'For cleaning charges: tap 📎 and import your Airbnb payout CSVs or bank statements, then I\'ll total every cleaning line for the period you ask. (Live number-crunching switches on once Claude is connected.)';
-  if(/profit|net|made|earn|revenue|income/i.test(q))return 'For profit I\'ll need: payouts in + your costs (cleaning, management %, supplies, strata/mortgage). Upload those with 📎 and I\'ll net it out per property. (Activates with Claude connected.)';
-  return 'Ask me e.g. “cleaning charges this year” or “profit on 134 Thompsons”, and import statements with 📎 — I\'ll guide you on exactly what to upload. Real analysis turns on when Claude is connected (Settings → API key).';
-}
+var AB_SYSTEM="You are Jack's Airbnb bookkeeping and finance analyst, inside his personal dashboard. He runs short-term rentals in Australia. When he asks about numbers (cleaning charges, income, expenses, profit), work from the statements and files he attaches — Airbnb payout CSVs, bank statements (PDF/CSV), or screenshots. Give clear totals with the actual figures and a short breakdown. If you need a specific document he hasn't given you, tell him exactly what to upload. Use AUD. Be concise.";
 function sendAbMsg(){
   var inp=document.getElementById('abInput'),q=(inp.value||'').trim();
   if(!q&&!AB_FILES.length)return;
-  var c=loadAbChat();c.push({role:'user',text:q||'(files attached)',files:AB_FILES.slice()});
-  var reply=abAgentReply(q,AB_FILES.length);AB_FILES=[];renderAbFiles();inp.value='';
-  saveAbChat(c);renderAbChat();
-  setTimeout(function(){var cc=loadAbChat();cc.push({role:'ai',text:reply});saveAbChat(cc);renderAbChat();},480);
+  var files=AB_FILES.slice(),names=files.map(function(f){return f.name;});
+  var c=loadAbChat();c.push({role:'user',text:q||'(files attached)',files:names});
+  AB_FILES=[];renderAbFiles();inp.value='';saveAbChat(c);renderAbChat();
+  var box=document.getElementById('abChat');box.insertAdjacentHTML('beforeend','<div class="ab-msg ai" id="abPending">…analysing</div>');box.scrollTop=box.scrollHeight;
+  Promise.all(files.map(readFileForClaude)).then(function(blocks){
+    var content=[];if(q)content.push({type:'text',text:q});blocks.forEach(function(b){content.push(b);});if(!content.length)content.push({type:'text',text:'Please analyse the attached files.'});
+    var hist=loadAbChat();
+    var msgs=hist.slice(0,-1).map(function(m){return {role:m.role==='user'?'user':'assistant',content:m.text};});
+    msgs.push({role:'user',content:content});
+    askClaude(msgs,{system:AB_SYSTEM,max_tokens:1600}).then(function(r){
+      var p=document.getElementById('abPending');if(p)p.remove();
+      var cc=loadAbChat();cc.push({role:'ai',text:(r&&r.text)?r.text:aiErrText(r)});saveAbChat(cc);renderAbChat();
+    });
+  });
 }
-(function wireAb(){var fi=document.getElementById('abFile');if(fi)fi.addEventListener('change',function(){[].slice.call(fi.files).forEach(function(f){AB_FILES.push(f.name);});fi.value='';renderAbFiles();});})();
+(function wireAb(){var fi=document.getElementById('abFile');if(fi)fi.addEventListener('change',function(){[].slice.call(fi.files).forEach(function(f){AB_FILES.push(f);});fi.value='';renderAbFiles();});})();
 renderAirbnbTasks();renderAbChat();
 // ── Anthropic API key (stored on-device; clearly shows saved state) ──
 function apiKeyMask(k){return k?('sk-ant-…'+k.slice(-4)):'';}
@@ -2208,6 +2227,7 @@ function refreshApiKeyStatus(){
   if(!s)return;
   if(k){s.textContent='✓ saved ('+apiKeyMask(k)+')';s.style.color='var(--green3)';if(inp){inp.value='';inp.placeholder=apiKeyMask(k)+' · saved — paste a new one to replace';}if(clr)clr.style.display='';}
   else{s.textContent='not set';s.style.color='';if(inp)inp.placeholder='sk-ant-api03-…';if(clr)clr.style.display='none';}
+  fetch('/api/ai/status').then(function(r){return r.json();}).then(function(d){if(d&&d.configured){var s2=document.getElementById('apiKeyStatus');if(s2){s2.textContent='✓ Claude live on server (secure)';s2.style.color='var(--green3)';}}}).catch(function(){});
 }
 function saveApiKey(){var inp=document.getElementById('apiKeyInput');var v=(inp?inp.value:'').trim();if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);refreshApiKeyStatus();toast('✓ Key saved on this device');}
 function clearApiKey(){localStorage.removeItem('jd_anthropic_key');refreshApiKeyStatus();toast('Key removed');}
@@ -2270,12 +2290,14 @@ function closeTaskManager(){
 function sendTaskMsg(){
   var inp=document.getElementById('tmInput'),v=(inp.value||'').trim();if(!v)return;
   var body=document.getElementById('tmBody');
-  body.insertAdjacentHTML('beforeend','<div class="tm-msg me">'+v.replace(/</g,'&lt;')+'</div>');
-  inp.value='';body.scrollTop=body.scrollHeight;
-  setTimeout(function(){
-    body.insertAdjacentHTML('beforeend','<div class="tm-msg ai">On it — first pass:<br>1. Outlined the approach<br>2. Drafted the key message<br>3. Flagged what needs your sign-off.<br><br><i>(Prototype reply — this becomes a real Claude conversation, with your API key, in the live build.)</i></div>');
-    body.scrollTop=body.scrollHeight;
-  },650);
+  body.insertAdjacentHTML('beforeend','<div class="tm-msg me">'+esc(v)+'</div>');inp.value='';
+  body.insertAdjacentHTML('beforeend','<div class="tm-msg ai" id="tmPending">…</div>');body.scrollTop=body.scrollHeight;
+  var task=(document.getElementById('tmTask')||{}).textContent||'this task';
+  var msgs=[];[].slice.call(body.querySelectorAll('.tm-msg')).forEach(function(el){if(el.id==='tmPending')return;msgs.push({role:el.classList.contains('me')?'user':'assistant',content:el.textContent});});
+  askClaude(msgs,{system:'You are Jack\'s hands-on task manager, inside his personal dashboard, helping with the task: "'+task+'". Draft it, plan it, break it into steps, or knock it out. Be practical and concise. Australian context.',max_tokens:1200}).then(function(r){
+    var p=document.getElementById('tmPending');if(p)p.remove();
+    body.insertAdjacentHTML('beforeend','<div class="tm-msg ai">'+esc((r&&r.text)?r.text:aiErrText(r)).replace(/\n/g,'<br>')+'</div>');body.scrollTop=body.scrollHeight;
+  });
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeTask();});
 document.addEventListener('click',function(e){

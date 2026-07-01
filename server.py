@@ -15,6 +15,7 @@ import json
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -76,8 +77,48 @@ def fetch_news(topic):
     return items
 
 
+# ── Claude proxy — the key lives here (env var), never in the browser ──
+ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+ENV_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+
+
+def call_claude(payload):
+    # Prefer the server-side env-var key (secure). Fall back to a key the client
+    # passes (Jack's on-device key) so AI works before the env var is set.
+    key = (payload.get("apiKey") or ENV_API_KEY or "").strip()
+    if not key:
+        return {"error": "not_configured", "text": ""}
+    body = {
+        "model": payload.get("model") or "claude-opus-4-8",
+        "max_tokens": min(int(payload.get("max_tokens") or 1024), 4096),
+        "messages": payload.get("messages") or [],
+    }
+    if payload.get("system"):
+        body["system"] = payload["system"]
+    req = urllib.request.Request(
+        ANTHROPIC_URL,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return {"error": "api_error", "text": "", "detail": e.read().decode("utf-8", "ignore")[:400]}
+    except Exception as e:
+        return {"error": str(e), "text": ""}
+    parts = resp.get("content") or []
+    text = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+    return {"text": text, "model": resp.get("model", "")}
+
+
 class Handler(SimpleHTTPRequestHandler):
-    """Static handler + news proxy, with sane headers and an index.html fallback."""
+    """Static handler + news + Claude proxy, with sane headers and an index.html fallback."""
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
@@ -95,7 +136,21 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):
+        if self.path == "/api/ai":
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                payload = {}
+            return self._send_json(call_claude(payload))
+        self.send_response(404)
+        self.end_headers()
+
     def do_GET(self):
+        if self.path == "/api/ai/status":
+            return self._send_json({"configured": bool(ENV_API_KEY)})
         if self.path.startswith("/api/news"):
             qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             topic = (qs.get("topic") or ["property"])[0]
