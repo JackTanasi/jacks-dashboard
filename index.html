@@ -748,6 +748,9 @@ body{font-family:var(--font);color:var(--text);background:
 .news-meta{font-size:11px;color:var(--muted);margin-top:3px;}
 .news-empty{padding:14px 2px;color:var(--muted);font-size:12.5px;}
 .news-note{font-size:12px;color:var(--muted);line-height:1.5;text-align:center;}
+.news-ai{font-size:12.5px;line-height:1.5;color:var(--text2);background:rgba(3,54,47,0.05);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin:2px 0 10px;}
+.news-sum-badge{font-size:10px;font-weight:800;color:var(--green3);text-transform:uppercase;letter-spacing:.04em;margin-right:6px;}
+.news-sum-load{color:var(--muted);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="module">
@@ -1180,11 +1183,11 @@ body{font-family:var(--font);color:var(--text);background:
       <div><div class="news-title">📰 News that matters to you</div><div class="news-sub" id="newsUpdated">Australia · tap Refresh for the latest</div></div>
       <div class="news-actions"><button class="ts-btn" onclick="loadNews(true)">⟳ Refresh</button><button class="btn-primary" onclick="weeklySummary()">📄 This week's summary (PDF)</button></div>
     </div>
-    <div class="card col2"><div class="card-head"><div class="card-title">🏠 Property · AUS</div></div><div class="news-list" id="news-property"></div></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">📈 Shares · Gold/Silver/Oil/ASX</div></div><div class="news-list" id="news-shares"></div></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">💼 Business · AUS</div></div><div class="news-list" id="news-business"></div></div>
-    <div class="card col2"><div class="card-head"><div class="card-title">🏛️ Government · AUS</div></div><div class="news-list" id="news-government"></div></div>
-    <div class="card col4"><div class="news-note">Headlines are pulled live from Australian news, tailored to your topics. The headline is your quick summary — tap any to read the full story. <b>AI-rewritten one-line summaries + an auto-emailed Sunday PDF</b> switch on when Claude is connected (Settings → API key).</div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🏠 Property · AUS</div></div><div class="news-ai" id="newssum-property" style="display:none;"></div><div class="news-list" id="news-property"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">📈 Shares · Gold/Silver/Oil/ASX</div></div><div class="news-ai" id="newssum-shares" style="display:none;"></div><div class="news-list" id="news-shares"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">💼 Business · AUS</div></div><div class="news-ai" id="newssum-business" style="display:none;"></div><div class="news-list" id="news-business"></div></div>
+    <div class="card col2"><div class="card-head"><div class="card-title">🏛️ Government · AUS</div></div><div class="news-ai" id="newssum-government" style="display:none;"></div><div class="news-list" id="news-government"></div></div>
+    <div class="card col4"><div class="news-note">Headlines are pulled live from Australian news, tailored to your topics — tap any to read the full story. Each section gets an <b>✦ AI summary</b> when Claude is connected (Settings → API key). Auto-emailed Sunday PDF is the next step.</div></div>
    </div>
   </section>
 
@@ -2280,12 +2283,32 @@ var NEWS_TOPICS=['property','shares','business','government'];
 var NEWS_DATA={},newsLoaded=false;
 function newsTimeAgo(d){var t=new Date(d);if(isNaN(t))return '';var s=(Date.now()-t.getTime())/1000;if(s<3600)return Math.max(1,Math.round(s/60))+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}
 function renderNewsList(topic){var el=document.getElementById('news-'+topic);if(!el)return;var items=NEWS_DATA[topic]||[];if(!items.length){el.innerHTML='<div class="news-empty">No headlines yet — tap ⟳ Refresh.</div>';return;}el.innerHTML=items.slice(0,6).map(function(n){return '<a class="news-item" href="'+n.link+'" target="_blank" rel="noopener"><div class="news-hl">'+esc(n.title)+'</div><div class="news-meta">'+esc(n.source||'')+(n.date?' · '+newsTimeAgo(n.date):'')+'</div></a>';}).join('');}
+var NEWS_LABELS={property:'Australian property market',shares:'gold, silver, oil and ASX shares',business:'Australian business and economy',government:'Australian government and policy'};
+function renderNewsSummary(topic,text,mode){var el=document.getElementById('newssum-'+topic);if(!el)return;
+  if(mode==='load'){el.innerHTML='<span class="news-sum-badge">✦ AI summary</span><span class="news-sum-load">summarising…</span>';el.style.display='block';return;}
+  if(mode==='hint'){el.innerHTML='<span class="news-sum-badge">✦ AI summary</span><span class="news-sum-load">Connect Claude (Settings) to summarise each section.</span>';el.style.display='block';return;}
+  if(!text){el.style.display='none';return;}
+  el.innerHTML='<span class="news-sum-badge">✦ AI summary</span>'+esc(text);el.style.display='block';
+}
+function summariseNews(topic,force){
+  var items=NEWS_DATA[topic]||[];if(!items.length){renderNewsSummary(topic,'',null);return;}
+  var cache={};try{cache=JSON.parse(localStorage.getItem('jd_newssum')||'{}');}catch(e){}
+  var top=items[0]?items[0].link:'';var c=cache[topic];
+  if(!force&&c&&c.text&&c.top===top&&(Date.now()-c.ts<6*3600*1000)){renderNewsSummary(topic,c.text,null);return;}
+  renderNewsSummary(topic,'','load');
+  var headlines=items.slice(0,6).map(function(n,i){return (i+1)+'. '+n.title+(n.source?' ('+n.source+')':'');}).join('\n');
+  askClaude([{role:'user',content:'Today\'s '+(NEWS_LABELS[topic]||topic)+' headlines for Jack in Australia:\n\n'+headlines+'\n\nWrite a 2-3 sentence plain-English summary of what\'s happening and why it matters to him. No preamble, no bullet points — just the summary.'}],{max_tokens:220}).then(function(r){
+    if(r&&r.text){var t=r.text.trim();renderNewsSummary(topic,t,null);cache[topic]={ts:Date.now(),text:t,top:top};try{localStorage.setItem('jd_newssum',JSON.stringify(cache));}catch(e){}}
+    else if(r&&r.error==='not_configured'){renderNewsSummary(topic,'','hint');}
+    else{renderNewsSummary(topic,'',null);}
+  });
+}
 function loadNews(force){
   if(newsLoaded&&!force)return;newsLoaded=true;
   var upd=document.getElementById('newsUpdated');if(upd)upd.textContent='Loading latest…';
   NEWS_TOPICS.forEach(function(topic){
     var el=document.getElementById('news-'+topic);if(el&&!(NEWS_DATA[topic]&&NEWS_DATA[topic].length))el.innerHTML='<div class="news-empty">Loading…</div>';
-    fetch('/api/news?topic='+topic).then(function(r){return r.json();}).then(function(d){NEWS_DATA[topic]=d.items||[];renderNewsList(topic);var u=document.getElementById('newsUpdated');if(u)u.textContent='Australia · updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}).catch(function(){var e2=document.getElementById('news-'+topic);if(e2)e2.innerHTML='<div class="news-empty">Couldn\'t load — tap ⟳ Refresh.</div>';});
+    fetch('/api/news?topic='+topic).then(function(r){return r.json();}).then(function(d){NEWS_DATA[topic]=d.items||[];renderNewsList(topic);summariseNews(topic,force);var u=document.getElementById('newsUpdated');if(u)u.textContent='Australia · updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}).catch(function(){var e2=document.getElementById('news-'+topic);if(e2)e2.innerHTML='<div class="news-empty">Couldn\'t load — tap ⟳ Refresh.</div>';});
   });
 }
 function weeklySummary(){
