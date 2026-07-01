@@ -711,6 +711,20 @@ body{font-family:var(--font);color:var(--text);background:
 .ab-q{flex:1;border:1px solid var(--border);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px;background:var(--card);color:var(--text);min-width:0;}
 .ab-send{background:var(--green);color:#fff;border:none;border-radius:11px;padding:0 18px;font:inherit;font-weight:800;cursor:pointer;flex-shrink:0;}
 .ab-foot{font-size:11px;color:var(--muted);margin-top:9px;text-align:center;}
+/* Trading — weekly withdrawal tracker */
+.wd-invested{outline:none;border-bottom:1px dashed var(--border);cursor:text;}
+.wd-summary{margin:6px 0 12px;}
+.wd-taken{font-size:16px;font-weight:800;letter-spacing:-.01em;}
+.wd-vs{font-size:12px;color:var(--muted);margin-top:2px;}
+.wd-up{color:var(--green3);font-weight:800;}
+.wd-down{color:#c0492f;font-weight:800;}
+.wd-weeks{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;}
+.wd-row{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border);}
+.wd-row:last-child{border-bottom:none;}
+.wd-row.done .wd-date{text-decoration:line-through;color:var(--muted);}
+.wd-date{flex:1;font-weight:700;font-size:13.5px;}
+.wd-amt{font-size:13px;font-weight:800;color:var(--green3);background:rgba(3,54,47,0.08);padding:3px 10px;border-radius:8px;cursor:text;outline:none;}
+.wd-row.done .wd-amt{color:var(--muted);background:var(--border);}
 /* Trading tab */
 .trade-actions{display:flex;gap:12px;flex-wrap:wrap;}
 .trade-btn{flex:1;min-width:210px;display:flex;align-items:center;justify-content:center;gap:8px;padding:17px;border-radius:14px;font-weight:800;font-size:15px;text-decoration:none;color:#fff;transition:transform .15s;box-shadow:0 12px 30px -12px rgba(0,0,0,.4);}
@@ -755,7 +769,7 @@ body{font-family:var(--font);color:var(--text);background:
   const DOC_ID = IS_LIVE ? 'jack_redesign' : 'jack_redesign_sandbox';
   const DOC_REF = doc(db, 'users', DOC_ID);
   console.log(IS_LIVE ? 'Firebase: LIVE doc (jack_redesign)' : 'Firebase: SANDBOX doc (jack_redesign_sandbox) — live data is safe');
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault','jd_trade_wd'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -1179,6 +1193,11 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="card col4 trade-actions">
       <a class="trade-btn stake" href="https://trading.hellostake.com/platform/holdings" target="_blank" rel="noopener">⚡ Open Stake — Holdings ↗</a>
       <a class="trade-btn tv" href="https://www.tradingview.com/chart/jA4Fkc5E/" target="_blank" rel="noopener">📈 Open my TradingView chart ↗</a>
+    </div>
+    <div class="card col2" id="wdCard">
+      <div class="card-head"><div class="card-title">💵 <span class="wd-invested" contenteditable="true" spellcheck="false" onblur="setWdInvested(this.textContent)">$3,500</span></div><span class="card-sub">$500 / week goal</span></div>
+      <div class="wd-summary" id="wdSummary"></div>
+      <div class="wd-weeks" id="wdWeeks"></div>
     </div>
     <div class="card col4"><div class="card-head"><div class="card-title">💰 Metals & Oil</div><span class="card-sub">live · TradingView</span></div>
       <div class="metals-row">
@@ -1609,7 +1628,7 @@ function showPage(p){
   document.getElementById('pageTitle').textContent=titles[p]||'Home';
   if(p==='calendar'&&typeof renderCalendar==='function')renderCalendar();
   if(p==='gte')loadGteFrame();
-  if(p==='trading'&&window.loadTradingWidgets)loadTradingWidgets();
+  if(p==='trading'){if(window.loadTradingWidgets)loadTradingWidgets();if(window.renderTradeWd)renderTradeWd();}
   if(p==='news'&&window.loadNews)loadNews();
   if(p==='settings'&&window.refreshApiKeyStatus)refreshApiKeyStatus();
   window.scrollTo(0,0);
@@ -1625,6 +1644,30 @@ function loadTradingWidgets(){
   tvEmbed('tvOil',mini,{symbol:'TVC:USOIL',width:'100%',height:'160',locale:'en',dateRange:'1D',colorTheme:'light',isTransparent:true,autosize:false});
   tvEmbed('tvChart','https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',{symbol:'OANDA:XAUUSD',interval:'60',timezone:'Australia/Brisbane',theme:'light',style:'1',locale:'en',hide_side_toolbar:true,allow_symbol_change:true,calendar:false,width:'100%',height:'100%'});
 }
+// ── Weekly withdrawal tracker ──
+var TRADE_WD=jload('jd_trade_wd',null)||{invested:3500,goal:500,start:null,weeks:{}};
+function saveTradeWd(){jsave('jd_trade_wd',TRADE_WD);}
+function fmtMoney(n){return '$'+(Math.round(n)||0).toLocaleString('en-AU');}
+function sundayYmd(d){var x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-x.getDay());return ymd(x);}
+function listSundays(startYmd){var out=[],s=new Date(startYmd+'T00:00:00'),end=new Date();end.setHours(0,0,0,0);end.setDate(end.getDate()-end.getDay());var cur=new Date(s),g=0;while(cur<=end&&g<520){out.push(ymd(cur));cur.setDate(cur.getDate()+7);g++;}return out;}
+function setWdInvested(txt){var n=parseFloat((''+txt).replace(/[^0-9.]/g,''));if(!isNaN(n)){TRADE_WD.invested=n;saveTradeWd();}renderTradeWd();}
+function toggleWd(k){var w=TRADE_WD.weeks[k]||{taken:false,amount:TRADE_WD.goal};w.taken=!w.taken;if(w.amount==null)w.amount=TRADE_WD.goal;TRADE_WD.weeks[k]=w;saveTradeWd();renderTradeWd();}
+function setWdAmount(k,val){var n=parseFloat((''+val).replace(/[^0-9.\-]/g,''));var w=TRADE_WD.weeks[k]||{taken:false,amount:TRADE_WD.goal};w.amount=isNaN(n)?0:n;TRADE_WD.weeks[k]=w;saveTradeWd();renderTradeWd();}
+function renderTradeWd(){
+  var card=document.getElementById('wdCard');if(!card)return;
+  if(!TRADE_WD.start)TRADE_WD.start=sundayYmd(new Date());
+  var inv=card.querySelector('.wd-invested');if(inv)inv.textContent=fmtMoney(TRADE_WD.invested);
+  var sundays=listSundays(TRADE_WD.start),takenTotal=0;
+  sundays.forEach(function(k){var w=TRADE_WD.weeks[k];if(w&&w.taken)takenTotal+=(+w.amount||0);});
+  var target=sundays.length*TRADE_WD.goal,diff=takenTotal-target;
+  var sum=document.getElementById('wdSummary');
+  if(sum)sum.innerHTML='<div class="wd-taken">You\'ve taken out '+fmtMoney(takenTotal)+'</div><div class="wd-vs">Target to date '+fmtMoney(target)+' · <span class="'+(diff>=0?'wd-up':'wd-down')+'">'+(diff>=0?'+':'−')+fmtMoney(Math.abs(diff))+'</span></div>';
+  var wk=document.getElementById('wdWeeks');
+  if(wk)wk.innerHTML=sundays.slice().reverse().map(function(k){var w=TRADE_WD.weeks[k]||{taken:false,amount:TRADE_WD.goal};var d=new Date(k+'T00:00:00');var lbl=d.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+    return '<div class="wd-row'+(w.taken?' done':'')+'"><div class="rx-check'+(w.taken?' done':'')+'" onclick="toggleWd(\''+k+'\')"></div><span class="wd-date">Sun '+lbl+'</span><span class="wd-amt" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onblur="setWdAmount(\''+k+'\',this.textContent)">'+fmtMoney(w.amount==null?TRADE_WD.goal:w.amount)+'</span></div>';
+  }).join('');
+}
+renderTradeWd();
 function reloadGteFrame(){var f=document.getElementById('gteFrame');if(f){f.src=f.dataset.src;}}
 document.querySelectorAll('.rail-btn[data-page]').forEach(function(b){b.addEventListener('click',function(){showPage(b.dataset.page);});});
 
@@ -1897,7 +1940,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();if(typeof VAULT!=='undefined'&&!vaultEditing){VAULT=jload('jd_vault',VAULT_DEFAULT.slice());renderVault();}}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();if(typeof VAULT!=='undefined'&&!vaultEditing){VAULT=jload('jd_vault',VAULT_DEFAULT.slice());renderVault();}if(typeof TRADE_WD!=='undefined'){TRADE_WD=jload('jd_trade_wd',TRADE_WD);renderTradeWd();}}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
