@@ -79,7 +79,8 @@ def fetch_news(topic):
 
 # ── Claude proxy — the key lives here (env var), never in the browser ──
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-ENV_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+# join+split scrubs ALL whitespace — keys pasted into Render with line breaks still work
+ENV_API_KEY = "".join(os.environ.get("ANTHROPIC_API_KEY", "").split())
 
 # Other service keys (set in Render → Environment; the dashboard auto-detects them)
 ENV_KEYS_STATUS = {
@@ -138,7 +139,7 @@ def _ical_date(line):
 def call_claude(payload):
     # Prefer the server-side env-var key (secure). Fall back to a key the client
     # passes (Jack's on-device key) so AI works before the env var is set.
-    key = (payload.get("apiKey") or ENV_API_KEY or "").strip()
+    key = "".join((payload.get("apiKey") or ENV_API_KEY or "").split())
     if not key:
         return {"error": "not_configured", "text": ""}
     body = {
@@ -164,7 +165,8 @@ def call_claude(payload):
     except urllib.error.HTTPError as e:
         return {"error": "api_error", "text": "", "detail": e.read().decode("utf-8", "ignore")[:400]}
     except Exception as e:
-        return {"error": str(e), "text": ""}
+        msg = str(e).replace(key, "***")  # never echo key material in errors
+        return {"error": msg[:200], "text": ""}
     parts = resp.get("content") or []
     text = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
     return {"text": text, "model": resp.get("model", "")}
