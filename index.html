@@ -711,6 +711,16 @@ body{font-family:var(--font);color:var(--text);background:
 .ab-q{flex:1;border:1px solid var(--border);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px;background:var(--card);color:var(--text);min-width:0;}
 .ab-send{background:var(--green);color:#fff;border:none;border-radius:11px;padding:0 18px;font:inherit;font-weight:800;cursor:pointer;flex-shrink:0;}
 .ab-foot{font-size:11px;color:var(--muted);margin-top:9px;text-align:center;}
+/* Daily brief + nudges */
+.brief-body{font-size:13.5px;line-height:1.55;color:var(--text2);}
+.brief-body b{color:var(--text);}
+.nudge{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;font-weight:600;background:rgba(192,73,47,0.08);border:1px solid rgba(192,73,47,0.25);color:#8a3220;border-radius:10px;padding:8px 11px;margin-bottom:7px;line-height:1.35;}
+.nudge.ok{background:rgba(3,54,47,0.06);border-color:var(--border);color:var(--green3);}
+/* Vial tracker */
+.vial{font-size:11px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:7px;padding:2px 7px;cursor:text;outline:none;margin-left:6px;white-space:nowrap;}
+.vial.low{color:#c0492f;border-color:rgba(192,73,47,0.4);}
+.rx-adh{font-size:11.5px;color:var(--muted);font-weight:700;}
+.rx-adh b{color:var(--green3);}
 /* Trading — weekly withdrawal tracker */
 .wd-invested{outline:none;border-bottom:1px dashed var(--border);cursor:text;}
 .wd-summary{margin:6px 0 12px;}
@@ -772,7 +782,7 @@ body{font-family:var(--font);color:var(--text);background:
   const DOC_ID = IS_LIVE ? 'jack_redesign' : 'jack_redesign_sandbox';
   const DOC_REF = doc(db, 'users', DOC_ID);
   console.log(IS_LIVE ? 'Firebase: LIVE doc (jack_redesign)' : 'Firebase: SANDBOX doc (jack_redesign_sandbox) — live data is safe');
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault','jd_trade_wd'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault','jd_trade_wd','jd_habits','jd_done_log','jd_brief'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -951,6 +961,11 @@ body{font-family:var(--font);color:var(--text);background:
       <div class="hero-foot"><div><b id="heroPending">0</b><span>Pending</span></div><div><b id="heroUnderway">0</b><span>Underway</span></div><div><b id="heroOoc">0</b><span>Out of hands</span></div><div><b id="heroDoneCount">0</b><span>Completed</span></div></div>
     </div>
 
+    <div class="card col2" id="briefCard"><div class="card-head"><div class="card-title">☀️ Daily Brief</div><span class="card-sub" id="briefSub"></span></div>
+      <div id="briefNudges"></div>
+      <div id="briefBody" class="brief-body"></div>
+      <button class="show-more" onclick="genBrief(true)">⟳ Regenerate brief</button>
+    </div>
     <div class="card nav-card today-card col2" data-goto="calendar"><div class="card-head"><div class="card-title">📅 Today</div><span class="card-sub" id="todayDate">Sun 28 Jun</span></div>
       <div id="todayAgenda"></div>
     </div>
@@ -1000,17 +1015,16 @@ body{font-family:var(--font);color:var(--text);background:
       <div class="big-num" id="finNetCashHome">$0</div>
       <div style="font-size:11.5px;color:var(--text3);margin-top:6px;">across 6 accounts · tap for Financial →</div>
     </div>
-    <div class="card"><div class="card-head"><div class="card-title">Task Breakdown</div><span class="dots">···</span></div>
-      <div class="donut-wrap"><svg width="100" height="100" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#eef0f3" stroke-width="6"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#03362f" stroke-width="6" stroke-dasharray="48 52" stroke-dashoffset="25" stroke-linecap="round"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#cda884" stroke-width="6" stroke-dasharray="28 72" stroke-dashoffset="-23" stroke-linecap="round"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#e4cbac" stroke-width="6" stroke-dasharray="12 88" stroke-dashoffset="-51" stroke-linecap="round"/><text x="21" y="20" text-anchor="middle" font-size="7" font-weight="800" fill="#16202a">22</text><text x="21" y="26" text-anchor="middle" font-size="3" fill="#9aa3b0">TOTAL</text></svg>
-      <div class="donut-legend"><div><i style="background:#03362f"></i>Completed <b>12</b></div><div><i style="background:#cda884"></i>Underway <b>3</b></div><div><i style="background:#e4cbac"></i>Pending <b>5</b></div><div><i style="background:#eef0f3"></i>On hold <b>2</b></div></div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Task Breakdown</div><span class="card-sub" id="tbSub"></span></div>
+      <div class="donut-wrap" id="tbDonut"></div>
     </div>
 
-    <div class="card"><div class="card-head"><div class="card-title">Weekly Activity</div><span class="card-sub">Tasks/day</span></div>
-      <div class="bars"><div class="b"><div class="bar" style="height:46px"></div><span>M</span></div><div class="b"><div class="bar" style="height:68px"></div><span>T</span></div><div class="b"><div class="bar" style="height:54px"></div><span>W</span></div><div class="b peak"><div class="bar" style="height:108px"></div><span>T</span></div><div class="b"><div class="bar" style="height:78px"></div><span>F</span></div><div class="b"><div class="bar" style="height:36px"></div><span>S</span></div><div class="b"><div class="bar" style="height:26px"></div><span>S</span></div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Weekly Activity</div><span class="card-sub">tasks done/day</span></div>
+      <div class="bars" id="homeBars"></div>
     </div>
 
-    <div class="card"><div class="card-head"><div class="card-title">Daily Habits</div><span class="card-sub">4/6</span></div>
-      <div class="habit"><div class="hc on"></div><span class="he">🙏</span><span class="ht">Pray</span></div><div class="habit"><div class="hc on"></div><span class="he">💪</span><span class="ht">Gym</span></div><div class="habit"><div class="hc on"></div><span class="he">📞</span><span class="ht">Call Family</span></div><div class="habit"><div class="hc"></div><span class="he">💊</span><span class="ht">Creatine</span></div><div class="habit"><div class="hc on"></div><span class="he">🎬</span><span class="ht">Motivation</span></div><div class="habit"><div class="hc"></div><span class="he">📈</span><span class="ht">Test a Trade</span></div>
+    <div class="card"><div class="card-head"><div class="card-title">Daily Habits</div><span class="card-sub" id="homeHabitsSub"></span></div>
+      <div id="homeHabits"></div>
     </div>
 
     <div class="card focus-card col2"><div class="card-head"><div class="stat-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><span class="card-sub">Today's Focus</span></div>
@@ -1273,11 +1287,9 @@ body{font-family:var(--font);color:var(--text);background:
         </div>
       </div>
     </div>
-    <div class="card col2 agent-card"><div class="card-head"><div class="card-title">💡 Save Money</div><span class="card-sub">AI tips</span></div>
-      <div class="agent-msg">🔴 <b>Wants ≈ $2,860/mo</b> (11% of income) — Outings $2,000 + Spending $800. Trim 20% → save <b>~$6,860/yr</b>.</div>
-      <div class="agent-msg">🟠 <b>Subscriptions $61/mo</b> — review Spotify, Uber One, YouTube, iCloud for overlap.</div>
-      <div class="agent-input"><input placeholder="Ask: where can I save?"/><button>Ask</button></div>
-      <div class="agent-note">Placeholder — wire to Claude to analyse spend & suggest savings.</div>
+    <div class="card col2 agent-card"><div class="card-head"><div class="card-title">💡 Ask your Bookkeeper</div><span class="card-sub">AI · sees your budget</span></div>
+      <div id="finChat"><div class="agent-msg">Ask me anything about your money — <b>"where can I save?"</b>, <b>"what % goes to the house?"</b>, <b>"can I afford $X/month more?"</b> I read the live figures on this page.</div></div>
+      <div class="agent-input"><input id="finAskInput" placeholder="Ask: where can I save?" onkeydown="if(event.key==='Enter')sendFinMsg()"/><button onclick="sendFinMsg()">Ask</button></div>
     </div>
 
     <div class="card col2"><div class="card-head"><div class="card-title">📉 Expenses · <span id="expPeriodLabel">monthly</span></div><span class="card-sub"><b id="finExp2">$0</b></span></div>
@@ -1494,9 +1506,9 @@ body{font-family:var(--font);color:var(--text);background:
   <!-- ───────── HEALTH ───────── -->
   <section class="page" id="page-health">
    <div class="grid">
-    <div class="card hero col2"><div class="card-head"><div class="card-title">Today's Habits</div></div><div class="hero-num">4<span> / 6 done</span></div><div style="font-size:12.5px;color:rgba(243,230,211,0.7);">🔥 12-day streak — keep it alive</div></div>
+    <div class="card hero col2"><div class="card-head"><div class="card-title">Today's Habits</div></div><div class="hero-num" id="habitHeroNum">0<span> / 6 done</span></div><div style="font-size:12.5px;color:rgba(243,230,211,0.7);" id="habitHeroStreak">Start your streak today</div></div>
     <div class="card col2"><div class="card-head"><div class="card-title">Daily Habits</div><span class="card-sub">tap to tick</span></div>
-      <div class="habit"><div class="hc on"></div><span class="he">🙏</span><span class="ht">Pray</span></div><div class="habit"><div class="hc on"></div><span class="he">💪</span><span class="ht">Gym</span></div><div class="habit"><div class="hc on"></div><span class="he">📞</span><span class="ht">Call Family</span></div><div class="habit"><div class="hc"></div><span class="he">💊</span><span class="ht">Creatine</span></div><div class="habit"><div class="hc on"></div><span class="he">🎬</span><span class="ht">Motivational Video</span></div><div class="habit"><div class="hc"></div><span class="he">📈</span><span class="ht">Test a Trade</span></div>
+      <div id="healthHabits"></div>
     </div>
     <div class="card col4" id="protocolCard"><div class="card-head"><div class="card-title">💉 Today's Protocol · <span id="protoDay">—</span></div><span class="card-sub" id="protoProgress">0/0</span></div>
       <div id="protoBody"></div>
@@ -1509,7 +1521,7 @@ body{font-family:var(--font);color:var(--text);background:
       <div id="historyBody"></div>
     </div>
     <div class="card col4"><div class="card-head"><div class="card-title">This Week's Consistency</div><span class="card-sub">habits/day</span></div>
-      <div class="bars"><div class="b"><div class="bar" style="height:90px"></div><span>M</span></div><div class="b peak"><div class="bar" style="height:120px"></div><span>T</span></div><div class="b"><div class="bar" style="height:78px"></div><span>W</span></div><div class="b"><div class="bar" style="height:96px"></div><span>T</span></div><div class="b"><div class="bar" style="height:66px"></div><span>F</span></div><div class="b"><div class="bar" style="height:48px"></div><span>S</span></div><div class="b"><div class="bar" style="height:72px"></div><span>S</span></div></div>
+      <div class="bars" id="healthBars"></div>
     </div>
    </div>
   </section>
@@ -1671,6 +1683,91 @@ function renderTradeWd(){
   }).join('');
 }
 renderTradeWd();
+// ── Daily Habits (real: tick, persist, streak, drives charts) ──
+var HABITS=[{id:'pray',e:'🙏',n:'Pray'},{id:'gym',e:'💪',n:'Gym'},{id:'fam',e:'📞',n:'Call Family'},{id:'cre',e:'💊',n:'Creatine'},{id:'mot',e:'🎬',n:'Motivation'},{id:'trade',e:'📈',n:'Test a Trade'}];
+function loadHabits(){try{return JSON.parse(localStorage.getItem('jd_habits')||'{}');}catch(e){return {};}}
+function saveHabits(o){var ks=Object.keys(o).sort();while(ks.length>90)delete o[ks.shift()];localStorage.setItem('jd_habits',JSON.stringify(o));}
+function setHabit(id,on){var all=loadHabits(),d=all[healthToday()]||{};d[id]=on;all[healthToday()]=d;saveHabits(all);renderHabitsAll();}
+function toggleHabit(id){var all=loadHabits(),d=all[healthToday()]||{};d[id]=!d[id];all[healthToday()]=d;saveHabits(all);renderHabitsAll();}
+function habitStreak(){var all=loadHabits(),s=0,d=new Date();
+  var today=all[ymd(d)]||{};var todayFull=HABITS.every(function(h){return today[h.id];});
+  if(!todayFull)d.setDate(d.getDate()-1); // streak can still be alive from yesterday
+  for(var i=0;i<365;i++){var day=all[ymd(d)]||{};if(HABITS.every(function(h){return day[h.id];})){s++;d.setDate(d.getDate()-1);}else break;}
+  return s;}
+function renderHabitsAll(){
+  var checks=loadHabits()[healthToday()]||{};
+  var done=HABITS.filter(function(h){return checks[h.id];}).length;
+  var html=HABITS.map(function(h){var on=checks[h.id]?' on':'';return '<div class="habit" onclick="toggleHabit(\''+h.id+'\')"><div class="hc'+on+'"></div><span class="he">'+h.e+'</span><span class="ht">'+h.n+'</span></div>';}).join('');
+  var a=document.getElementById('homeHabits');if(a)a.innerHTML=html;
+  var b=document.getElementById('healthHabits');if(b)b.innerHTML=html;
+  var s1=document.getElementById('homeHabitsSub');if(s1)s1.textContent=done+'/'+HABITS.length;
+  var hero=document.getElementById('habitHeroNum');if(hero)hero.innerHTML=done+'<span> / '+HABITS.length+' done</span>';
+  var st=habitStreak();var hs=document.getElementById('habitHeroStreak');if(hs)hs.textContent=st>0?('🔥 '+st+'-day streak — keep it alive'):'Tick all '+HABITS.length+' to start a streak';
+  renderHealthBars();
+}
+function renderHealthBars(){var el=document.getElementById('healthBars');if(!el)return;var all=loadHabits(),out=[],max=HABITS.length;
+  for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var day=all[ymd(d)]||{};var n=HABITS.filter(function(h){return day[h.id];}).length;
+    out.push('<div class="b'+(n===max&&n>0?' peak':'')+'"><div class="bar" style="height:'+Math.max(6,Math.round(n/max*110))+'px"></div><span>'+'SMTWTFS'[d.getDay()]+'</span></div>');}
+  el.innerHTML=out.join('');}
+// ── Done-log → real Weekly Activity + donut ──
+function bumpDoneLog(delta){var log={};try{log=JSON.parse(localStorage.getItem('jd_done_log')||'{}');}catch(e){}var k=healthToday();log[k]=Math.max(0,(log[k]||0)+delta);var ks=Object.keys(log).sort();while(ks.length>30)delete log[ks.shift()];localStorage.setItem('jd_done_log',JSON.stringify(log));renderHomeBars();}
+function renderHomeBars(){var el=document.getElementById('homeBars');if(!el)return;var log={};try{log=JSON.parse(localStorage.getItem('jd_done_log')||'{}');}catch(e){}
+  var vals=[],labels=[];for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);vals.push(log[ymd(d)]||0);labels.push('SMTWTFS'[d.getDay()]);}
+  var max=Math.max.apply(null,vals.concat([1]));
+  el.innerHTML=vals.map(function(v,i){return '<div class="b'+(v===max&&v>0?' peak':'')+'"><div class="bar" style="height:'+Math.max(6,Math.round(v/max*110))+'px"></div><span>'+labels[i]+'</span></div>';}).join('');}
+function renderDonut(){var el=document.getElementById('tbDonut');if(!el)return;
+  var c={done:0,underway:0,pending:0,ooc:0};TASKS.forEach(function(t){if(c[t.status]!=null)c[t.status]++;});
+  var total=TASKS.length;var sub=document.getElementById('tbSub');if(sub)sub.textContent=total+' tasks';
+  if(!total){el.innerHTML='<div class="task-empty" style="padding:14px;">No tasks yet.</div>';return;}
+  var segs=[['done','#03362f','Completed'],['underway','#cda884','Underway'],['pending','#e4cbac','Pending'],['ooc','#eef0f3','Out of my control']];
+  var off=25,circ='';segs.forEach(function(s){var pct=c[s[0]]/total*100;if(pct>0){circ+='<circle cx="21" cy="21" r="15.9" fill="none" stroke="'+s[1]+'" stroke-width="6" stroke-dasharray="'+pct+' '+(100-pct)+'" stroke-dashoffset="'+off+'" stroke-linecap="round"/>';off-=pct;}});
+  el.innerHTML='<svg width="100" height="100" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#eef0f3" stroke-width="6"/>'+circ+'<text x="21" y="20" text-anchor="middle" font-size="7" font-weight="800" fill="#16202a">'+total+'</text><text x="21" y="26" text-anchor="middle" font-size="3" fill="#9aa3b0">TOTAL</text></svg>'+
+  '<div class="donut-legend">'+segs.map(function(s){return '<div><i style="background:'+s[1]+'"></i>'+s[2]+' <b>'+c[s[0]]+'</b></div>';}).join('')+'</div>';}
+// ── Ask your Bookkeeper (Financial → Claude with live figures) ──
+function finContext(){var out=[];document.querySelectorAll('#page-financial .card').forEach(function(card){var t=card.querySelector('.card-title');if(!t)return;var lines=[];card.querySelectorAll('.exp-row').forEach(function(r){var name=(r.querySelector('span')||{}).textContent||'';var inp=r.querySelector('input');var val=inp?inp.value:(r.querySelector('b')||{}).textContent||'';if(name&&val!=null)lines.push(name.trim()+': $'+val);});if(lines.length)out.push(t.textContent.trim()+'\n'+lines.join('\n'));});
+  ['finSurplus','finSurplusYr','finNetWorth','finExp2'].forEach(function(id){var e=document.getElementById(id);if(e)out.push(id+': '+e.textContent);});
+  return out.join('\n\n').slice(0,14000);}
+function sendFinMsg(){var inp=document.getElementById('finAskInput'),q=(inp.value||'').trim();if(!q)return;
+  var box=document.getElementById('finChat');
+  box.insertAdjacentHTML('beforeend','<div class="agent-msg" style="background:var(--green);color:#fff;">'+esc(q)+'</div>');
+  box.insertAdjacentHTML('beforeend','<div class="agent-msg" id="finPending">…thinking</div>');inp.value='';
+  askClaude([{role:'user',content:'My current budget figures (from my dashboard):\n\n'+finContext()+'\n\nQuestion: '+q}],{system:'You are Jack\'s sharp, practical Australian bookkeeper inside his personal dashboard. Answer from the figures given — real numbers, short and direct, AUD. If a figure is missing, say what to check.',max_tokens:900}).then(function(r){
+    var p=document.getElementById('finPending');if(p)p.remove();
+    box.insertAdjacentHTML('beforeend','<div class="agent-msg">'+esc((r&&r.text)?r.text:aiErrText(r)).replace(/\n/g,'<br>')+'</div>');box.scrollTop=box.scrollHeight;});}
+// ── Daily Brief + proactive nudges ──
+function computeNudges(){
+  var n=[],today=healthToday();
+  var overdue=TASKS.filter(function(t){return t.status!=='done'&&t.due&&t.due<today;});
+  if(overdue.length)n.push('⏰ '+overdue.length+' task'+(overdue.length>1?'s':'')+' overdue — oldest: “'+esc(overdue[0].text).slice(0,40)+'”');
+  var now=Date.now();TASKS.forEach(function(t){if(t.status!=='done'&&!t.due){var ts=parseInt((t.id||'').slice(1),10);if(ts&&ts>1600000000000&&now-ts>14*86400000&&n.length<5)n.push('🪨 “'+esc(t.text).slice(0,40)+'” has sat '+Math.floor((now-ts)/86400000)+' days with no due date');}});
+  try{var wd=TRADE_WD;if(wd&&wd.start){var sundays=listSundays(wd.start),taken=0;sundays.forEach(function(k){var w=wd.weeks[k];if(w&&w.taken)taken+=(+w.amount||0);});var gap=taken-sundays.length*wd.goal;if(gap<0)n.push('📉 Trading withdrawals '+fmtMoney(Math.abs(gap))+' behind your $'+wd.goal+'/week plan');}}catch(e){}
+  try{var all=loadHealth(),missed=0,due=0;for(var i=1;i<=7;i++){var d=new Date();d.setDate(d.getDate()-i);var k=ymd(d),dowDue=dueRx(d.getDay()),checks=all[k]||{};dowDue.forEach(function(r){due++;if(!checks[r.id])missed++;});}
+    if(due&&missed/due>0.3)n.push('💉 Protocol slipping — '+missed+' of '+due+' doses missed this week');}catch(e){}
+  return n.slice(0,4);}
+function renderNudges(){var el=document.getElementById('briefNudges');if(!el)return;var n=computeNudges();
+  el.innerHTML=n.length?n.map(function(x){return '<div class="nudge">'+x+'</div>';}).join(''):'<div class="nudge ok">✓ Nothing on fire — all clear.</div>';}
+function briefContext(){
+  var dow=new Date().getDay();
+  var act=TASKS.filter(function(t){return t.status!=='done';});
+  var lines=['Date: '+new Date().toDateString()];
+  lines.push('Open tasks ('+act.length+'): '+act.slice(0,10).map(function(t){return t.text+(t.due?(' (due '+t.due+')'):'')+' ['+(BRAND_NAMES[t.brand]||t.brand)+']';}).join('; '));
+  var due=dueRx(dow);lines.push('Health protocol today: '+(due.length?due.map(function(r){return r.name;}).join(', '):'rest day')+'. Training: '+(TRAIN[dow]||'rest'));
+  try{var heads=[];['property','shares'].forEach(function(t){(NEWS_DATA[t]||[]).slice(0,2).forEach(function(h){heads.push(h.title);});});if(heads.length)lines.push('Headlines: '+heads.join(' | '));}catch(e){}
+  lines.push('Nudges: '+computeNudges().join(' | '));
+  return lines.join('\n');}
+function genBrief(force){
+  var el=document.getElementById('briefBody'),sub=document.getElementById('briefSub');if(!el)return;
+  renderNudges();
+  var cache={};try{cache=JSON.parse(localStorage.getItem('jd_brief')||'{}');}catch(e){}
+  if(!force&&cache.date===healthToday()&&cache.text){el.innerHTML=esc(cache.text).replace(/\n/g,'<br>');if(sub)sub.textContent='today';return;}
+  el.innerHTML='<span class="news-sum-load">✦ writing your brief…</span>';
+  var pre=briefContext();
+  askClaude([{role:'user',content:'Here is Jack\'s day:\n\n'+pre+'\n\nWrite his morning brief: 3-5 punchy sentences — what today looks like, the ONE thing to hit first and why, plus anything at risk. Speak directly to him. No lists, no preamble.'}],{max_tokens:350}).then(function(r){
+    if(r&&r.text){var t=r.text.trim();el.innerHTML=esc(t).replace(/\n/g,'<br>');if(sub)sub.textContent='today';try{localStorage.setItem('jd_brief',JSON.stringify({date:healthToday(),text:t}));}catch(e){}}
+    else if(r&&r.error==='not_configured'){el.innerHTML='<span class="news-sum-load">Connect Claude (Settings) and your brief writes itself every morning. Your nudges above work already.</span>';}
+    else{el.innerHTML='<span class="news-sum-load">'+esc(aiErrText(r))+'</span>';}
+  });}
+// (init runs at end of script — TASKS/HEALTH_RX must exist first)
 function reloadGteFrame(){var f=document.getElementById('gteFrame');if(f){f.src=f.dataset.src;}}
 document.querySelectorAll('.rail-btn[data-page]').forEach(function(b){b.addEventListener('click',function(){showPage(b.dataset.page);});});
 
@@ -1912,10 +2009,12 @@ function renderTasks(){
   var done=TASKS.filter(function(t){return t.status==='done';}).length;
   setTxt('heroDone',done);setTxt('heroDoneCount',done);
   if(window.renderAirbnbTasks)renderAirbnbTasks();
+  if(window.renderDonut)renderDonut();
+  if(window.renderNudges)renderNudges();
 }
 function nextDue(due,rep){var d=due?new Date(due+'T00:00:00'):new Date();if(isNaN(d))d=new Date();if(rep==='daily')d.setDate(d.getDate()+1);else if(rep==='weekly')d.setDate(d.getDate()+7);else if(rep==='monthly')d.setMonth(d.getMonth()+1);else if(rep==='yearly')d.setFullYear(d.getFullYear()+1);return ymd(d);}
-function completeOrRoll(t){if(t.repeat&&t.repeat!=='none'){t.due=nextDue(t.due,t.repeat);t.status='pending';return '🔁 Next '+t.repeat+' set for '+t.due;}t.status='done';return null;}
-function toggleTaskDone(id){var t=findTask(id);if(!t)return;if(t.status==='done'){t.status='pending';}else{var m=completeOrRoll(t);if(m&&window.toast)toast(m);}saveTasks();renderTasks();}
+function completeOrRoll(t){if(window.bumpDoneLog)bumpDoneLog(1);if(t.repeat&&t.repeat!=='none'){t.due=nextDue(t.due,t.repeat);t.status='pending';return '🔁 Next '+t.repeat+' set for '+t.due;}t.status='done';return null;}
+function toggleTaskDone(id){var t=findTask(id);if(!t)return;if(t.status==='done'){t.status='pending';if(window.bumpDoneLog)bumpDoneLog(-1);}else{var m=completeOrRoll(t);if(m&&window.toast)toast(m);}saveTasks();renderTasks();}
 function editTask(id,v){var t=findTask(id);if(t){t.text=(v||'').trim()||t.text;saveTasks();}}
 function removeTask(id){TASKS=TASKS.filter(function(t){return t.id!==id;});try{localStorage.removeItem('jd_img_'+id);}catch(e){}saveTasks();renderTasks();}
 function addTaskFromForm(){
@@ -1943,7 +2042,7 @@ function removeGoal(i){GOALS.splice(i,1);saveGoals();renderGoals();}
 function addGoal(input){var v=(input.value||'').trim();if(!v)return;GOALS.push({text:v,done:false});saveGoals();renderGoals();input.value='';}
 renderTasks();renderGoals();
 // Called by the Firebase module when data arrives from another device
-window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();if(typeof VAULT!=='undefined'&&!vaultEditing){VAULT=jload('jd_vault',VAULT_DEFAULT.slice());renderVault();}if(typeof TRADE_WD!=='undefined'){TRADE_WD=jload('jd_trade_wd',TRADE_WD);renderTradeWd();}}catch(e){}};
+window.cloudSyncApply=function(){try{TASKS=jload('jd_tasks',[]);GOALS=jload('jd_goals',[]);renderTasks();renderGoals();if(window.renderHealthAll)renderHealthAll();if(window.maybeOfferRestore)maybeOfferRestore();if(typeof VAULT!=='undefined'&&!vaultEditing){VAULT=jload('jd_vault',VAULT_DEFAULT.slice());renderVault();}if(typeof TRADE_WD!=='undefined'){TRADE_WD=jload('jd_trade_wd',TRADE_WD);renderTradeWd();}if(window.renderHabitsAll)renderHabitsAll();if(window.renderHomeBars)renderHomeBars();}catch(e){}};
 
 // ── Task detail slide-over ──
 function brandName(logoHTML){
@@ -2109,7 +2208,7 @@ document.addEventListener('click',function(e){
   if(b.classList.contains('add-line')){var blk=b.parentElement,row=document.createElement('div');row.className='exp-row';row.innerHTML='<span class="editable" contenteditable="true" spellcheck="false">New item</span><div class="bal-input">$<input class="exp-input" type="number" value="0" oninput="if(window.calcFin)calcFin()"/></div><button class="row-x">×</button>';blk.insertBefore(row,b);var sp=row.querySelector('span');if(sp){var rg=document.createRange();rg.selectNodeContents(sp);var se=window.getSelection();se.removeAllRanges();se.addRange(rg);}return;}
   if(b.classList.contains('collapse-btn')){var card=b.closest('.card');if(card){card.classList.toggle('collapsed');b.textContent=card.classList.contains('collapsed')?'▸':'▾';}return;}
   // prayer toggle (local)
-  if(/Mark as prayed/i.test(t)){var k='jd_prayed_'+ymd(new Date());if(localStorage.getItem(k)){localStorage.removeItem(k);b.textContent='🙏 Mark as prayed';toast('Unmarked');}else{localStorage.setItem(k,'1');b.textContent='✓ Prayed today';toast('🙏 Marked as prayed');}return;}
+  if(/Mark as prayed/i.test(t)){var k='jd_prayed_'+ymd(new Date());if(localStorage.getItem(k)){localStorage.removeItem(k);b.textContent='🙏 Mark as prayed';if(window.setHabit)setHabit('pray',false);toast('Unmarked');}else{localStorage.setItem(k,'1');b.textContent='✓ Prayed today';if(window.setHabit)setHabit('pray',true);toast('🙏 Marked as prayed');}return;}
   // settings: save Anthropic key (local)
   if(/Save Key/i.test(t)){var inp=b.parentElement.querySelector('input');var v=inp?(inp.value||'').trim():'';if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);if(inp)inp.value='';toast('✓ Key saved on this device');return;}
   // integration-dependent → honest feedback, never silent
@@ -2143,7 +2242,7 @@ function loadRxCfg(){try{return JSON.parse(localStorage.getItem('jd_rx_cfg')||'{
 function rxDose(r){var c=loadRxCfg();return (c.doses&&c.doses[r.id]!=null)?c.doses[r.id]:r.dose;}
 function setDose(id,val){var c=loadRxCfg();c.doses=c.doses||{};c.doses[id]=(val||'').trim();localStorage.setItem('jd_rx_cfg',JSON.stringify(c));}
 function dueRx(dow){return HEALTH_RX.filter(function(r){return r.days.indexOf(dow)>=0;});}
-function toggleRx(id){var all=loadHealth(),day=healthToday(),d=all[day]||{};d[id]=!d[id];all[day]=d;saveHealth(all);renderProtocol();renderHistory();}
+function toggleRx(id){var all=loadHealth(),day=healthToday(),d=all[day]||{};d[id]=!d[id];all[day]=d;saveHealth(all);if(window.bumpVial)bumpVial(id,d[id]?-1:1);renderProtocol();renderHistory();}
 function toggleTrain(){var all=loadHealth(),day=healthToday(),d=all[day]||{};d.train=!d.train;all[day]=d;saveHealth(all);renderTraining();renderHistory();}
 function renderProtocol(){
   var body=document.getElementById('protoBody');if(!body)return;
@@ -2156,10 +2255,16 @@ function renderProtocol(){
       return '<div class="rx-row'+on+'" onclick="toggleRx(\''+r.id+'\')"><div class="rx-check"></div><span class="rx-ico">'+r.icon+'</span><span class="rx-name">'+r.name+'</span><span class="rx-dose" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onblur="setDose(\''+r.id+'\',this.textContent)">'+dz+'</span></div>';}).join('')+'</div>';}
   body.innerHTML=(sec('am','Morning','🌅')+sec('pm','Night','🌙'))||'<div class="rx-empty">Nothing scheduled today — rest day 💪</div>';
   var total=due.length,done=due.filter(function(r){return checks[r.id];}).length;
-  var pg=document.getElementById('protoProgress');if(pg)pg.textContent=done+'/'+total+(total&&done===total?' ✓ all done':' done');
+  var pg=document.getElementById('protoProgress');
+  if(pg){var adh=rxAdherenceWeek();pg.innerHTML=done+'/'+total+(total&&done===total?' ✓':'')+(adh!=null?' · <span class="rx-adh"><b>'+adh+'%</b> this week</span>':'');}
   var sch=document.getElementById('protoSchedule');
-  if(sch)sch.innerHTML=HEALTH_RX.map(function(r){return '<div class="rx-sched-row"><b>'+r.icon+' '+r.name+(rxDose(r)?' · '+rxDose(r):'')+'</b><span class="rx-sched-days">'+r.days.map(function(d){return DAY_ABBR[d];}).join(' ')+' · '+(r.when==='am'?'AM':'PM')+'</span></div>';}).join('');
+  if(sch)sch.innerHTML=HEALTH_RX.map(function(r){var v=rxVial(r.id);var chip=r.dose||v!=null?('<span class="vial'+(v!=null&&v<=7?' low':'')+'" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onblur="setVial(\''+r.id+'\',this.textContent)" title="doses left in vial — edit">'+(v!=null?(v<=7?'⚠ ':'')+v+' left'+(v<=7?' · reorder':''):'+ vial')+'</span>'):'';
+    return '<div class="rx-sched-row"><b>'+r.icon+' '+r.name+(rxDose(r)?' · '+rxDose(r):'')+chip+'</b><span class="rx-sched-days">'+r.days.map(function(d){return DAY_ABBR[d];}).join(' ')+' · '+(r.when==='am'?'AM':'PM')+'</span></div>';}).join('');
 }
+function rxAdherenceWeek(){var all=loadHealth(),doneN=0,dueN=0;for(var i=0;i<7;i++){var d=new Date();d.setDate(d.getDate()-i);var k=ymd(d),checks=all[k]||{};dueRx(d.getDay()).forEach(function(r){dueN++;if(checks[r.id])doneN++;});}return dueN?Math.round(doneN/dueN*100):null;}
+function rxVial(id){var c=loadRxCfg();return (c.vials&&c.vials[id]!=null)?c.vials[id]:null;}
+function setVial(id,txt){var n=parseInt((''+txt).replace(/[^0-9]/g,''),10);var c=loadRxCfg();c.vials=c.vials||{};if(isNaN(n))delete c.vials[id];else c.vials[id]=n;localStorage.setItem('jd_rx_cfg',JSON.stringify(c));renderProtocol();}
+function bumpVial(id,delta){var c=loadRxCfg();if(c.vials&&c.vials[id]!=null){c.vials[id]=Math.max(0,c.vials[id]+delta);localStorage.setItem('jd_rx_cfg',JSON.stringify(c));}}
 function renderTraining(){
   var body=document.getElementById('trainBody');if(!body)return;
   var dow=new Date().getDay(),part=TRAIN[dow];
@@ -2576,6 +2681,8 @@ if(micBtn){
     rec.start();
   });
 }
+// ── Late init: everything is declared by now ──
+try{renderHabitsAll();renderHomeBars();renderDonut();genBrief(false);}catch(e){console.log('late init',e);}
 </script>
 </body>
 </html>
