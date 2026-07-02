@@ -723,6 +723,14 @@ body{font-family:var(--font);color:var(--text);background:
 .conn-status.ok{background:rgba(3,54,47,0.1);color:var(--green3);}
 .conn-status.todo{background:rgba(120,130,140,0.12);color:var(--muted);}
 .conn-status.warn{background:rgba(212,140,60,0.15);color:#a2691e;}
+.conn-btn{margin-top:8px;border:1px solid var(--border);background:var(--card);border-radius:9px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--green3);cursor:pointer;}
+.conn-btn:hover{border-color:var(--green3);}
+.stay-row{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border);font-size:13px;}
+.stay-row:last-child{border-bottom:none;}
+.stay-prop{font-weight:800;flex:1;min-width:0;}
+.stay-dates{color:var(--muted);font-weight:600;white-space:nowrap;}
+.stay-badge{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(3,54,47,0.08);color:var(--green3);white-space:nowrap;}
+.stay-badge.now{background:#ff5a5f;color:#fff;}
 /* Daily brief + nudges */
 .brief-body{font-size:13.5px;line-height:1.55;color:var(--text2);}
 .brief-body b{color:var(--text);}
@@ -794,7 +802,7 @@ body{font-family:var(--font);color:var(--text);background:
   const DOC_ID = IS_LIVE ? 'jack_redesign' : 'jack_redesign_sandbox';
   const DOC_REF = doc(db, 'users', DOC_ID);
   console.log(IS_LIVE ? 'Firebase: LIVE doc (jack_redesign)' : 'Firebase: SANDBOX doc (jack_redesign_sandbox) — live data is safe');
-  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault','jd_trade_wd','jd_habits','jd_done_log','jd_brief'];
+  const SYNC_KEYS = ['jd_tasks','jd_goals','jd_home_order','jd_motivation_videos','jd_pin','jd_health','jd_rx_cfg','jd_vault','jd_trade_wd','jd_habits','jd_done_log','jd_brief','jd_ab_ical'];
   const NEVER_SYNC = ['jd_pin_unlocked','jd_theme'];   // per-device
   function shouldSync(k){ return !!k && k.indexOf('jd_')===0 && NEVER_SYNC.indexOf(k)<0 && SYNC_KEYS.indexOf(k)>=0; }
   const _pending={}; let _t=null;
@@ -1254,6 +1262,9 @@ body{font-family:var(--font);color:var(--text);background:
       <div class="ab-launch-logo">🏡</div>
       <div><div class="ab-launch-title">Open Airbnb Host ↗</div><div class="ab-launch-sub">Bookings, calendar & payouts on airbnb.com</div></div>
     </a>
+    <div class="card col2" id="staysCard"><div class="card-head"><div class="card-title">📅 Upcoming Stays</div><span class="card-sub" id="staysSub">connect iCal in Settings</span></div>
+      <div id="abStays"><div class="task-empty">Connect your Airbnb calendar in Settings → Connections to see real bookings &amp; occupancy here.</div></div>
+    </div>
     <div class="card col2"><div class="card-head"><div class="card-title">🏡 Airbnb Tasks</div><span class="card-sub" id="abTaskCount">0 open</span></div>
       <div id="airbnbTasks"></div>
       <button class="show-more" style="border-top:1px solid var(--border);" onclick="openAddTask('ab')">＋ Add an Airbnb task</button>
@@ -1546,14 +1557,21 @@ body{font-family:var(--font);color:var(--text);background:
       <div class="usage-row"><span>Email summaries</span><span>$0.42</span></div><div class="usage-row"><span>Recommendations</span><span>$0.18</span></div><div class="usage-row"><span>Screenshot fill</span><span>$0.09</span></div><div class="usage-row"><span>Total</span><span>$0.69</span></div>
     </div>
     <div class="card col4"><div class="card-head"><div class="card-title">🔌 Connections</div><span class="card-sub">everything Jack's OS plugs into</span></div>
-      <div class="conn-row"><div class="conn-ico">🤖</div><div class="conn-info"><div class="conn-t">Claude AI (Anthropic)</div><div class="conn-d">Powers the Daily Brief, Airbnb agent, Bookkeeper, Task Manager &amp; news summaries.<br><b>Get it:</b> console.anthropic.com → API Keys → create key (add billing) → in Render: Environment → add <b>ANTHROPIC_API_KEY</b>.</div></div><span class="conn-status todo" id="connClaude">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">🤖</div><div class="conn-info"><div class="conn-t">Claude AI (Anthropic)</div><div class="conn-d">Powers the Daily Brief, Airbnb agent, Bookkeeper, Task Manager &amp; news summaries.<br><b>Get it:</b> console.anthropic.com → API Keys → create key (add billing) → in Render: Environment → add <b>ANTHROPIC_API_KEY</b>.</div><button class="conn-btn" onclick="var i=document.getElementById('apiKeyInput');if(i){i.scrollIntoView({block:'center'});setTimeout(function(){i.focus();},300);}">🔑 Paste key here instead</button></div><span class="conn-status todo" id="connClaude">Not connected</span></div>
       <div class="conn-row"><div class="conn-ico">🔥</div><div class="conn-info"><div class="conn-t">Firebase — cross-device sync</div><div class="conn-d">Syncs tasks, habits, health, trading &amp; goals across your devices.<br><b>Next step:</b> upgrade to Google login + locked rules (10 min with Claude) — currently the data is not private.</div></div><span class="conn-status warn">Connected · needs securing</span></div>
-      <div class="conn-row"><div class="conn-ico">🏦</div><div class="conn-info"><div class="conn-t">Bank feeds (Basiq)</div><div class="conn-d">Westpac, ANZ, Amex &amp; Bankwest balances + transactions flow in automatically — powers the auto-bookkeeper, bill radar &amp; net-worth timeline.<br><b>Get it:</b> create a free developer account at <b>basiq.io</b> → grab the API key → give it to Claude.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">🏦</div><div class="conn-info"><div class="conn-t">Bank feeds (Basiq)</div><div class="conn-d">Westpac, ANZ, Amex &amp; Bankwest balances + transactions flow in automatically — powers the auto-bookkeeper, bill radar &amp; net-worth timeline.<br><b>Connect:</b> create a free developer account at <b>basiq.io</b> → copy the API key → in Render: Environment → add <b>BASIQ_API_KEY</b>. This row flips green automatically, then tell Claude to build the feed.</div></div><span class="conn-status todo" id="connBasiq">Not connected</span></div>
       <div class="conn-row"><div class="conn-ico">📧</div><div class="conn-info"><div class="conn-t">Google — Gmail (all inboxes)</div><div class="conn-d">AI reads overnight email per business and briefs you; drafts replies you approve. <b>Strict rule built-in: each business only ever sends from its own inbox — never crossed.</b><br><b>Get it:</b> Google Cloud OAuth setup — do it together with Claude (needs the security upgrade first).</div></div><span class="conn-status todo">Not connected</span></div>
       <div class="conn-row"><div class="conn-ico">📅</div><div class="conn-info"><div class="conn-t">Google Calendar</div><div class="conn-d">2-way sync with your colour-coded calendar + due-date reminders from tasks.<br><b>Get it:</b> same Google setup as Gmail — one authorisation covers both.</div></div><span class="conn-status todo">Not connected</span></div>
       <div class="conn-row"><div class="conn-ico">☁️</div><div class="conn-info"><div class="conn-t">Firebase Storage</div><div class="conn-d">Task screenshots &amp; progress photos synced to every device (currently device-only).<br><b>Get it:</b> Firebase console → Build → Storage → Get started (2 clicks) → tell Claude.</div></div><span class="conn-status todo">Not connected</span></div>
-      <div class="conn-row"><div class="conn-ico">💬</div><div class="conn-info"><div class="conn-t">WhatsApp / SMS bot (Twilio)</div><div class="conn-d">Text the dashboard from anywhere: "add task pay strata Friday", "how's Nest today?"<br><b>Get it:</b> twilio.com account (~$10 credit) → give Claude the SID + token.</div></div><span class="conn-status todo">Not connected</span></div>
-      <div class="conn-row"><div class="conn-ico">🏡</div><div class="conn-info"><div class="conn-t">Airbnb calendar (iCal)</div><div class="conn-d">Real check-ins/check-outs + occupancy per property; auto cleaning tasks.<br><b>Get it:</b> Airbnb → your listing → Calendar → Availability → <b>Export calendar</b> → paste the link to Claude.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">💬</div><div class="conn-info"><div class="conn-t">WhatsApp / SMS bot (Twilio)</div><div class="conn-d">Text the dashboard from anywhere: "add task pay strata Friday", "how's Nest today?"<br><b>Connect:</b> twilio.com account (~$10 credit) → in Render: Environment → add <b>TWILIO_SID</b> and <b>TWILIO_TOKEN</b>. Flips green automatically, then Claude builds the bot.</div></div><span class="conn-status todo" id="connTwilio">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">🏡</div><div class="conn-info"><div class="conn-t">Airbnb calendar (iCal)</div><div class="conn-d">Real check-ins/check-outs + occupancy per property, straight onto your Airbnb tab.<br><b>Connect:</b> Airbnb → your listing → Calendar → Availability → <b>Export calendar</b> → copy the link and paste it below (one per line; name it like <b>134 Thompsons | https://…ics</b>).</div>
+        <button class="conn-btn" onclick="var b=document.getElementById('icalBox');b.style.display=b.style.display==='none'?'block':'none';">🔗 Connect / edit links</button>
+        <div id="icalBox" style="display:none;margin-top:9px;">
+          <textarea id="icalInput" class="set-input" rows="3" placeholder="134 Thompsons | https://www.airbnb.com.au/calendar/ical/…ics" style="width:100%;font-size:12px;"></textarea>
+          <button class="btn-primary" style="margin-top:8px;" onclick="saveIcal()">Save &amp; test</button>
+          <span id="icalMsg" style="font-size:11.5px;color:var(--muted);margin-left:8px;"></span>
+        </div>
+      </div><span class="conn-status todo" id="connAirbnb">Not connected</span></div>
       <div class="conn-row"><div class="conn-ico">📈</div><div class="conn-info"><div class="conn-t">TradingView + Stake</div><div class="conn-d">Live gold/silver/oil prices, your saved chart, and one-tap Stake holdings.</div></div><span class="conn-status ok">Connected ✓</span></div>
       <div class="conn-row"><div class="conn-ico">🚀</div><div class="conn-info"><div class="conn-t">GitHub publishing</div><div class="conn-d">Lets Claude push updates → Render auto-deploys the live site.<br><b>Note:</b> token was shared in chat — rotate it when convenient (GitHub → Settings → Developer settings).</div></div><span class="conn-status ok">Connected ✓</span></div>
     </div>
@@ -1669,7 +1687,8 @@ function showPage(p){
   if(p==='gte')loadGteFrame();
   if(p==='trading'){if(window.loadTradingWidgets)loadTradingWidgets();if(window.renderTradeWd)renderTradeWd();}
   if(p==='news'&&window.loadNews)loadNews();
-  if(p==='settings'&&window.refreshApiKeyStatus)refreshApiKeyStatus();
+  if(p==='settings'){if(window.refreshApiKeyStatus)refreshApiKeyStatus();if(window.refreshConnStatus)refreshConnStatus();}
+  if(p==='airbnb'&&window.renderStays)renderStays();
   window.scrollTo(0,0);
 }
 function loadGteFrame(){var f=document.getElementById('gteFrame');if(f&&!f.src&&f.dataset.src)f.src=f.dataset.src;}
@@ -2410,6 +2429,52 @@ function refreshApiKeyStatus(){
 function saveApiKey(){var inp=document.getElementById('apiKeyInput');var v=(inp?inp.value:'').trim();if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);refreshApiKeyStatus();toast('✓ Key saved on this device');}
 function clearApiKey(){localStorage.removeItem('jd_anthropic_key');refreshApiKeyStatus();toast('Key removed');}
 refreshApiKeyStatus();
+// ── Connections: env-key status + Airbnb iCal ──
+function refreshConnStatus(){
+  fetch('/api/status').then(function(r){return r.json();}).then(function(d){
+    [['basiq','connBasiq','Connected ✓'],['twilio','connTwilio','Connected ✓']].forEach(function(x){
+      var el=document.getElementById(x[1]);if(el&&d[x[0]]){el.textContent=x[2];el.className='conn-status ok';}});
+  }).catch(function(){});
+  var links=loadIcalLinks();var ab=document.getElementById('connAirbnb');
+  if(ab&&links.length){ab.textContent='Connected ✓ ('+links.length+')';ab.className='conn-status ok';}
+  var ti=document.getElementById('icalInput');if(ti&&!ti.value)ti.value=links.map(function(l){return (l.name?l.name+' | ':'')+l.url;}).join('\n');
+}
+function loadIcalLinks(){try{return JSON.parse(localStorage.getItem('jd_ab_ical')||'[]');}catch(e){return [];}}
+function saveIcal(){
+  var raw=(document.getElementById('icalInput').value||'').trim();var msg=document.getElementById('icalMsg');
+  var links=raw.split('\n').map(function(l){l=l.trim();if(!l)return null;var name='',url=l;if(l.indexOf('|')>-1){var p=l.split('|');name=p[0].trim();url=p.slice(1).join('|').trim();}if(!/^https?:\/\//.test(url))return null;return {name:name,url:url};}).filter(Boolean);
+  if(!links.length){localStorage.setItem('jd_ab_ical','[]');if(msg)msg.textContent='Cleared.';refreshConnStatus();renderStays();return;}
+  if(msg)msg.textContent='testing…';
+  fetch('/api/ical?url='+encodeURIComponent(links[0].url)).then(function(r){return r.json();}).then(function(d){
+    if(d.error==='host_not_allowed'){if(msg)msg.textContent='⚠ That link isn\'t an Airbnb/VRBO calendar link.';return;}
+    if(d.error){if(msg)msg.textContent='⚠ Couldn\'t fetch it — check the link.';return;}
+    localStorage.setItem('jd_ab_ical',JSON.stringify(links));
+    if(msg)msg.textContent='✓ Connected — '+(d.events||[]).length+' bookings found. Check the Airbnb tab!';
+    toast('🏡 Airbnb calendar connected');refreshConnStatus();renderStays(true);
+  }).catch(function(){if(msg)msg.textContent='⚠ Network error — try again.';});
+}
+var staysLoaded=false;
+function renderStays(force){
+  var box=document.getElementById('abStays');if(!box)return;
+  var links=loadIcalLinks();var sub=document.getElementById('staysSub');
+  if(!links.length){box.innerHTML='<div class="task-empty">Connect your Airbnb calendar in Settings → Connections to see real bookings &amp; occupancy here.</div>';if(sub)sub.textContent='connect iCal in Settings';return;}
+  if(staysLoaded&&!force)return;staysLoaded=true;
+  box.innerHTML='<div class="task-empty">Loading bookings…</div>';
+  Promise.all(links.map(function(l){return fetch('/api/ical?url='+encodeURIComponent(l.url)).then(function(r){return r.json();}).then(function(d){return (d.events||[]).map(function(e){e.prop=l.name||'Property';return e;});}).catch(function(){return [];});})).then(function(all){
+    var evs=[].concat.apply([],all).filter(function(e){return e.end>=healthToday()&&!/not available|blocked/i.test(e.summary||'');});
+    evs.sort(function(a,b){return a.start<b.start?-1:1;});
+    // occupancy next 30 days
+    var booked=0;for(var i=0;i<30;i++){var d=new Date();d.setDate(d.getDate()+i);var k=ymd(d);if(evs.some(function(e){return e.start<=k&&k<e.end;}))booked++;}
+    if(sub)sub.textContent=Math.round(booked/30*100)+'% booked · next 30d';
+    box.innerHTML=evs.length?evs.slice(0,6).map(function(e){
+      var inD=new Date(e.start+'T00:00:00'),outD=new Date(e.end+'T00:00:00');
+      var nights=Math.round((outD-inD)/86400000);
+      var now=healthToday()>=e.start&&healthToday()<e.end;
+      var lbl=inD.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' → '+outD.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+      return '<div class="stay-row"><span class="stay-prop">'+esc(e.prop)+'</span><span class="stay-dates">'+lbl+' · '+nights+'n</span><span class="stay-badge'+(now?' now':'')+'">'+(now?'IN NOW':'booked')+'</span></div>';
+    }).join(''):'<div class="task-empty">No upcoming bookings on the calendar.</div>';
+  });
+}
 // ── News tab ──
 var NEWS_TOPICS=['property','shares','business','government'];
 var NEWS_DATA={},newsLoaded=false;

@@ -81,6 +81,59 @@ def fetch_news(topic):
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ENV_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 
+# Other service keys (set in Render → Environment; the dashboard auto-detects them)
+ENV_KEYS_STATUS = {
+    "claude": lambda: bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
+    "basiq": lambda: bool(os.environ.get("BASIQ_API_KEY", "").strip()),
+    "twilio": lambda: bool(
+        os.environ.get("TWILIO_SID", "").strip() and os.environ.get("TWILIO_TOKEN", "").strip()
+    ),
+}
+
+# ── Airbnb iCal proxy (browsers can't fetch .ics cross-origin) ──
+_ICAL_CACHE = {}
+_ICAL_TTL = 1800  # 30 min
+_ICAL_ALLOWED = ("airbnb.com", "airbnb.com.au", "muscache.com", "vrbo.com", "booking.com")
+
+
+def fetch_ical(url):
+    host = urllib.parse.urlparse(url).hostname or ""
+    if not any(host == d or host.endswith("." + d) for d in _ICAL_ALLOWED):
+        return {"error": "host_not_allowed", "events": []}
+    hit = _ICAL_CACHE.get(url)
+    if hit and (time.time() - hit[0]) < _ICAL_TTL:
+        return hit[1]
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (JacksOS calendar)"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        raw = r.read().decode("utf-8", "ignore")
+    # unfold continuation lines, then walk VEVENTs
+    lines = raw.replace("\r\n ", "").replace("\r", "").split("\n")
+    events, cur = [], None
+    for ln in lines:
+        if ln.startswith("BEGIN:VEVENT"):
+            cur = {}
+        elif ln.startswith("END:VEVENT") and cur is not None:
+            if cur.get("start") and cur.get("end"):
+                events.append(cur)
+            cur = None
+        elif cur is not None:
+            if ln.startswith("DTSTART"):
+                cur["start"] = _ical_date(ln)
+            elif ln.startswith("DTEND"):
+                cur["end"] = _ical_date(ln)
+            elif ln.startswith("SUMMARY:"):
+                cur["summary"] = ln[8:].strip()
+    result = {"events": events}
+    _ICAL_CACHE[url] = (time.time(), result)
+    return result
+
+
+def _ical_date(line):
+    val = line.split(":", 1)[-1].strip()[:8]  # YYYYMMDD
+    if len(val) == 8 and val.isdigit():
+        return f"{val[0:4]}-{val[4:6]}-{val[6:8]}"
+    return None
+
 
 def call_claude(payload):
     # Prefer the server-side env-var key (secure). Fall back to a key the client
@@ -151,6 +204,15 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/ai/status":
             return self._send_json({"configured": bool(ENV_API_KEY)})
+        if self.path == "/api/status":
+            return self._send_json({k: fn() for k, fn in ENV_KEYS_STATUS.items()})
+        if self.path.startswith("/api/ical"):
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            url = (qs.get("url") or [""])[0]
+            try:
+                return self._send_json(fetch_ical(url))
+            except Exception as e:
+                return self._send_json({"error": str(e), "events": []})
         if self.path.startswith("/api/news"):
             qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             topic = (qs.get("topic") or ["property"])[0]
