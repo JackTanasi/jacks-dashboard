@@ -18,9 +18,9 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{font-family:var(--font);color:var(--text);background:
-  radial-gradient(1200px 600px at 85% -5%,rgba(205,168,132,0.20),transparent 55%),
-  radial-gradient(900px 500px at 5% 105%,rgba(3,54,47,0.12),transparent 55%),
-  radial-gradient(700px 600px at 50% 50%,rgba(120,140,200,0.06),transparent 60%),var(--bg);
+  radial-gradient(1400px 700px at 85% -10%,rgba(205,168,132,0.08),transparent 60%),
+  radial-gradient(1100px 600px at 0% 110%,rgba(3,54,47,0.05),transparent 60%),var(--bg);
+  background-attachment:fixed;
   -webkit-font-smoothing:antialiased;display:flex;min-height:100vh;}
 
 /* Rail */
@@ -50,7 +50,7 @@ body{font-family:var(--font);color:var(--text);background:
 .icon-btn .dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--copper-d);border:2px solid #fff;}
 
 /* Grid + cards */
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;grid-auto-flow:dense;}
 .page{display:none;}
 .page.active{display:block;animation:fade .3s ease;}
 @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
@@ -711,6 +711,18 @@ body{font-family:var(--font);color:var(--text);background:
 .ab-q{flex:1;border:1px solid var(--border);border-radius:11px;padding:11px 13px;font:inherit;font-size:14px;background:var(--card);color:var(--text);min-width:0;}
 .ab-send{background:var(--green);color:#fff;border:none;border-radius:11px;padding:0 18px;font:inherit;font-weight:800;cursor:pointer;flex-shrink:0;}
 .ab-foot{font-size:11px;color:var(--muted);margin-top:9px;text-align:center;}
+/* Connections */
+.conn-row{display:flex;gap:14px;align-items:flex-start;padding:15px 2px;border-bottom:1px solid var(--border);}
+.conn-row:last-child{border-bottom:none;}
+.conn-ico{font-size:20px;width:40px;height:40px;border-radius:12px;background:rgba(3,54,47,0.07);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.conn-info{flex:1;min-width:0;}
+.conn-t{font-weight:800;font-size:14.5px;letter-spacing:-.01em;}
+.conn-d{font-size:12px;color:var(--muted);line-height:1.55;margin-top:3px;}
+.conn-d b{color:var(--text2);}
+.conn-status{flex-shrink:0;font-size:10.5px;font-weight:800;padding:5px 11px;border-radius:999px;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em;}
+.conn-status.ok{background:rgba(3,54,47,0.1);color:var(--green3);}
+.conn-status.todo{background:rgba(120,130,140,0.12);color:var(--muted);}
+.conn-status.warn{background:rgba(212,140,60,0.15);color:#a2691e;}
 /* Daily brief + nudges */
 .brief-body{font-size:13.5px;line-height:1.55;color:var(--text2);}
 .brief-body b{color:var(--text);}
@@ -1533,6 +1545,18 @@ body{font-family:var(--font);color:var(--text);background:
     <div class="card col2"><div class="card-head"><div class="card-title">💳 AI Credit Usage</div></div>
       <div class="usage-row"><span>Email summaries</span><span>$0.42</span></div><div class="usage-row"><span>Recommendations</span><span>$0.18</span></div><div class="usage-row"><span>Screenshot fill</span><span>$0.09</span></div><div class="usage-row"><span>Total</span><span>$0.69</span></div>
     </div>
+    <div class="card col4"><div class="card-head"><div class="card-title">🔌 Connections</div><span class="card-sub">everything Jack's OS plugs into</span></div>
+      <div class="conn-row"><div class="conn-ico">🤖</div><div class="conn-info"><div class="conn-t">Claude AI (Anthropic)</div><div class="conn-d">Powers the Daily Brief, Airbnb agent, Bookkeeper, Task Manager &amp; news summaries.<br><b>Get it:</b> console.anthropic.com → API Keys → create key (add billing) → in Render: Environment → add <b>ANTHROPIC_API_KEY</b>.</div></div><span class="conn-status todo" id="connClaude">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">🔥</div><div class="conn-info"><div class="conn-t">Firebase — cross-device sync</div><div class="conn-d">Syncs tasks, habits, health, trading &amp; goals across your devices.<br><b>Next step:</b> upgrade to Google login + locked rules (10 min with Claude) — currently the data is not private.</div></div><span class="conn-status warn">Connected · needs securing</span></div>
+      <div class="conn-row"><div class="conn-ico">🏦</div><div class="conn-info"><div class="conn-t">Bank feeds (Basiq)</div><div class="conn-d">Westpac, ANZ, Amex &amp; Bankwest balances + transactions flow in automatically — powers the auto-bookkeeper, bill radar &amp; net-worth timeline.<br><b>Get it:</b> create a free developer account at <b>basiq.io</b> → grab the API key → give it to Claude.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">📧</div><div class="conn-info"><div class="conn-t">Google — Gmail (all inboxes)</div><div class="conn-d">AI reads overnight email per business and briefs you; drafts replies you approve. <b>Strict rule built-in: each business only ever sends from its own inbox — never crossed.</b><br><b>Get it:</b> Google Cloud OAuth setup — do it together with Claude (needs the security upgrade first).</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">📅</div><div class="conn-info"><div class="conn-t">Google Calendar</div><div class="conn-d">2-way sync with your colour-coded calendar + due-date reminders from tasks.<br><b>Get it:</b> same Google setup as Gmail — one authorisation covers both.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">☁️</div><div class="conn-info"><div class="conn-t">Firebase Storage</div><div class="conn-d">Task screenshots &amp; progress photos synced to every device (currently device-only).<br><b>Get it:</b> Firebase console → Build → Storage → Get started (2 clicks) → tell Claude.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">💬</div><div class="conn-info"><div class="conn-t">WhatsApp / SMS bot (Twilio)</div><div class="conn-d">Text the dashboard from anywhere: "add task pay strata Friday", "how's Nest today?"<br><b>Get it:</b> twilio.com account (~$10 credit) → give Claude the SID + token.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">🏡</div><div class="conn-info"><div class="conn-t">Airbnb calendar (iCal)</div><div class="conn-d">Real check-ins/check-outs + occupancy per property; auto cleaning tasks.<br><b>Get it:</b> Airbnb → your listing → Calendar → Availability → <b>Export calendar</b> → paste the link to Claude.</div></div><span class="conn-status todo">Not connected</span></div>
+      <div class="conn-row"><div class="conn-ico">📈</div><div class="conn-info"><div class="conn-t">TradingView + Stake</div><div class="conn-d">Live gold/silver/oil prices, your saved chart, and one-tap Stake holdings.</div></div><span class="conn-status ok">Connected ✓</span></div>
+      <div class="conn-row"><div class="conn-ico">🚀</div><div class="conn-info"><div class="conn-t">GitHub publishing</div><div class="conn-d">Lets Claude push updates → Render auto-deploys the live site.<br><b>Note:</b> token was shared in chat — rotate it when convenient (GitHub → Settings → Developer settings).</div></div><span class="conn-status ok">Connected ✓</span></div>
+    </div>
     <div class="card col4"><div class="card-head"><div class="card-title">🎨 Brand Logos</div><span class="card-sub">tap to replace</span></div>
       <div class="brand-pick"><button class="brand-logo"><img src="logo-sp.jpg"/></button><button class="brand-logo"><img src="logo-be.jpg"/></button><button class="brand-logo"><img src="logo-ns.jpg"/></button><button class="brand-logo"><img src="logo-rhi.jpg"/></button><button class="brand-logo"><img src="logo-fw.jpg"/></button><button class="brand-logo"><img src="logo-tr.jpg"/></button><button class="brand-logo"><img src="logo-ab.jpg"/></button><button class="brand-logo gte"><span>GTE</span></button><button class="brand-logo"><img src="logo-ti.svg"/></button></div>
     </div>
@@ -1821,7 +1845,7 @@ document.addEventListener('click',function(e){
 (function homeWidgets(){
   var grid=document.querySelector('#page-home .grid');
   if(!grid)return;
-  var map={'This Week':'hero','Add a Task':'addtask','All Tasks':'tasks','2026 Goals':'goals','Net Cash':'cash','Task Breakdown':'breakdown','Weekly Activity':'activity','Daily Habits':'habits',"Today's Focus":'focus','Daily Quote':'quote','Today':'today'};
+  var map={'This Week':'hero','Add a Task':'addtask','All Tasks':'tasks','2026 Goals':'goals','Net Cash':'cash','Task Breakdown':'breakdown','Weekly Activity':'activity','Daily Habits':'habits',"Today's Focus":'focus','Daily Quote':'quote','Daily Brief':'brief','Today':'today'};
   [].forEach.call(grid.children,function(c){
     if(!c.classList||!c.classList.contains('card'))return;
     var el=c.querySelector('.card-title')||c.querySelector('.card-sub');
@@ -2378,7 +2402,10 @@ function refreshApiKeyStatus(){
   if(!s)return;
   if(k){s.textContent='✓ saved ('+apiKeyMask(k)+')';s.style.color='var(--green3)';if(inp){inp.value='';inp.placeholder=apiKeyMask(k)+' · saved — paste a new one to replace';}if(clr)clr.style.display='';}
   else{s.textContent='not set';s.style.color='';if(inp)inp.placeholder='sk-ant-api03-…';if(clr)clr.style.display='none';}
-  fetch('/api/ai/status').then(function(r){return r.json();}).then(function(d){if(d&&d.configured){var s2=document.getElementById('apiKeyStatus');if(s2){s2.textContent='✓ Claude live on server (secure)';s2.style.color='var(--green3)';}}}).catch(function(){});
+  fetch('/api/ai/status').then(function(r){return r.json();}).then(function(d){
+    var srv=d&&d.configured;var s2=document.getElementById('apiKeyStatus');if(srv&&s2){s2.textContent='✓ Claude live on server (secure)';s2.style.color='var(--green3)';}
+    var c=document.getElementById('connClaude');if(c){var loc=!!localStorage.getItem('jd_anthropic_key');if(srv){c.textContent='Connected ✓ (server)';c.className='conn-status ok';}else if(loc){c.textContent='Connected · this device';c.className='conn-status warn';}else{c.textContent='Not connected';c.className='conn-status todo';}}
+  }).catch(function(){});
 }
 function saveApiKey(){var inp=document.getElementById('apiKeyInput');var v=(inp?inp.value:'').trim();if(!v){toast('Paste your key first');if(inp)inp.focus();return;}localStorage.setItem('jd_anthropic_key',v);refreshApiKeyStatus();toast('✓ Key saved on this device');}
 function clearApiKey(){localStorage.removeItem('jd_anthropic_key');refreshApiKeyStatus();toast('Key removed');}
